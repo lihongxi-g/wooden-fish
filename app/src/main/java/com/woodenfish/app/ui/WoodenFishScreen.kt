@@ -246,6 +246,7 @@ private fun DrawerItem(label: String, onClick: () -> Unit) {
 }
 
 // ═══════════════════ NOTIFICATION SETTINGS ═══════════════════
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NotifySettingsPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -283,6 +284,7 @@ private fun NotifySettingsPage(state: WoodenFishState, viewModel: WoodenFishView
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CustomInterval(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
     val units = listOf(t(lang, "分钟", "分鐘", "min"), t(lang, "小时", "小時", "hr"), t(lang, "天", "天", "day"))
@@ -327,7 +329,7 @@ private fun CustomInterval(state: WoodenFishState, viewModel: WoodenFishViewMode
 
 @Composable
 private fun HourPicker2(label: String, value: Int, onChange: (Int) -> Unit, range: IntRange = 6..23) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(32.dp))
         Slider(value = value.toFloat(), onValueChange = { onChange(it.toInt()) }, valueRange = range.first.toFloat()..range.last.toFloat(), steps = range.last - range.first - 1, colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary), modifier = Modifier.weight(1f))
         Text("$value", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(24.dp))
@@ -345,7 +347,7 @@ private fun AppearanceSettingsPage(state: WoodenFishState, viewModel: WoodenFish
             LangChip("English", "en", state.language) { viewModel.setLanguage(it) }
         }
 
-        HorizontalDivider()
+        Divider()
 
         Text(t(lang, "界面主题", "界面主題", "Theme"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
