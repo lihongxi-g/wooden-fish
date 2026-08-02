@@ -75,7 +75,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
             randomTime = prefs.isRandomTime(),
             notifyStart = prefs.getNotificationStartHour(),
             notifyEnd = prefs.getNotificationEndHour(),
-            showAgreement = !prefs.hasAgreedToTerms(),
+            showAgreement = !prefs.hasAgreedTerms(),
             themeMode = prefs.getThemeMode(),
             language = prefs.getLanguage(),
         )
@@ -203,7 +203,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     // --- Agreement ---
-    fun agreeToTerms() { prefs.setAgreedToTerms(); _state.value = _state.value.copy(showAgreement = false) }
+    fun agreeToTerms() { prefs.setAgreedTerms(); _state.value = _state.value.copy(showAgreement = false) }
     fun showLegalPage(page: String) { _state.value = _state.value.copy(showLegalPage = page) }
     fun dismissLegalPage() { _state.value = _state.value.copy(showLegalPage = null) }
 

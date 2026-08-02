@@ -150,7 +150,7 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
 private fun FishCanvas(hammerOffset: Float, onTap: () -> Unit, modifier: Modifier) {
     val scale = remember { Animatable(1f) }
     LaunchedEffect(hammerOffset) {
-        if (hammerOffset > 0.5f) { scale.snapTo(0.93f); scale.animateTo(1f, spring(DampingRatioMediumBouncy, StiffnessHigh)) }
+        if (hammerOffset > 0.5f) { scale.snapTo(0.93f); scale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh)) }
     }
 
     Canvas(
@@ -179,7 +179,7 @@ private fun FishCanvas(hammerOffset: Float, onTap: () -> Unit, modifier: Modifie
         val hammerAngle = hammerOffset * -25f  // swing from top-right
         val pivotX = cx + w * 0.35f; val pivotY = cy - h * 0.4f
         drawContext.canvas.save()
-        drawContext.canvas.rotate(hammerAngle, pivotX, pivotY)
+        drawContext.canvas.rotate(hammerAngle, Offset(pivotX, pivotY))
 
         // Mallet handle
         drawLine(color = Color(0xFF6D4C41), start = Offset(pivotX, pivotY), end = Offset(pivotX + w * 0.08f, pivotY + h * 0.35f), strokeWidth = 5f)
@@ -358,11 +358,13 @@ private fun AppearanceSettingsPage(state: WoodenFishState, viewModel: WoodenFish
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LangChip(label: String, code: String, current: String, onSelect: (String) -> Unit) {
     FilterChip(selected = current == code, onClick = { onSelect(code) }, label = { Text(label, fontSize = 13.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer))
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ThemeChip(label: String, mode: ThemeMode, current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
     FilterChip(selected = current == mode, onClick = { onSelect(mode) }, label = { Text(label, fontSize = 13.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer))
