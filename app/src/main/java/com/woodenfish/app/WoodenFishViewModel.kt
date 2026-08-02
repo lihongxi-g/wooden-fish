@@ -20,7 +20,7 @@ import kotlin.random.Random
 data class PlusOneParticle(
     val id: Int,
     val colorIndex: Int,
-    val offsetX: Float, // random horizontal offset
+    val positionIndex: Int, // 0=左上, 1=正上, 2=右上
 )
 
 data class WoodenFishState(
@@ -29,15 +29,19 @@ data class WoodenFishState(
     val particles: List<PlusOneParticle> = emptyList(),
     val showCelebration: Boolean = false,
     val notifyEnabled: Boolean = false,
-    val notifyHour: Int = 9,
-    val notifyMinute: Int = 0,
-    val notifyCount: Int = 3,
+    val notifyIntervalValue: Int = 1,
+    val notifyIntervalUnit: String = "小时", // 小时, 分钟, 天
     val randomTime: Boolean = true,
     val notifyStart: Int = 8,
     val notifyEnd: Int = 21,
     val showSettings: Boolean = false,
     val showAgreement: Boolean = false,
-    val showLegalPage: String? = null, // "agreement" or "privacy"
+    val showLegalPage: String? = null,
+    val showMenu: Boolean = false,
+    val themeMode: com.woodenfish.app.ui.theme.ThemeMode = com.woodenfish.app.ui.theme.ThemeMode.SYSTEM,
+    val language: String = "zh-CN", // zh-CN, zh-TW, en
+    val hammerOffset: Float = 0f, // animation for hammer
+    val aboutClickCount: Int = 0,
 )
 
 class WoodenFishViewModel(application: Application) : AndroidViewModel(application) {
@@ -54,82 +58,71 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
 
     init {
         vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val manager = application.getSystemService(VibratorManager::class.java)
-            manager.defaultVibrator
+            application.getSystemService(VibratorManager::class.java).defaultVibrator
         } else {
             @Suppress("DEPRECATION")
             application.getSystemService(android.content.Context.VIBRATOR_SERVICE) as Vibrator
         }
 
-        // Load initial state
         val todayCount = prefs.getCount()
         val totalCount = prefs.getTotalCount()
         _state.value = _state.value.copy(
             todayCount = todayCount,
             totalCount = totalCount,
             notifyEnabled = prefs.isNotificationEnabled(),
-            notifyHour = prefs.getNotificationHour(),
-            notifyMinute = prefs.getNotificationMinute(),
-            notifyCount = prefs.getNotificationCount(),
+            notifyIntervalValue = prefs.getNotifyIntervalValue(),
+            notifyIntervalUnit = prefs.getNotifyIntervalUnit(),
             randomTime = prefs.isRandomTime(),
             notifyStart = prefs.getNotificationStartHour(),
             notifyEnd = prefs.getNotificationEndHour(),
             showAgreement = !prefs.hasAgreedToTerms(),
+            themeMode = prefs.getThemeMode(),
+            language = prefs.getLanguage(),
         )
     }
 
     fun onFishTap() {
         val newCount = prefs.incrementCount()
-        prefs.incrementTotalCount()
+        prefs.incrementTotal()
         val totalCount = prefs.getTotalCount()
 
         // Vibrate
-        vibrate(30)
+        vibrate(25)
 
-        // Add a particle with random color and offset
+        // Trigger hammer animation
+        _state.value = _state.value.copy(hammerOffset = 1f)
+        viewModelScope.launch {
+            delay(150)
+            _state.value = _state.value.copy(hammerOffset = 0f)
+        }
+
+        // Random color + random position (0=左上, 1=正上, 2=右上)
         val colorIndex = Random.nextInt(com.woodenfish.app.ui.theme.PlusOneColors.size)
-        val offsetX = Random.nextFloat() * 160f - 80f // -80 to +80
-        val particle = PlusOneParticle(
-            id = particleCounter++,
-            colorIndex = colorIndex,
-            offsetX = offsetX,
-        )
+        val posIndex = Random.nextInt(3)
+        val particle = PlusOneParticle(id = particleCounter++, colorIndex = colorIndex, positionIndex = posIndex)
+        _state.value = _state.value.copy(particles = _state.value.particles + particle)
 
-        _state.value = _state.value.copy(
-            todayCount = newCount,
-            totalCount = totalCount,
-            particles = _state.value.particles + particle,
-        )
-
-        // Remove particle after animation
         viewModelScope.launch {
             delay(1200)
-            _state.value = _state.value.copy(
-                particles = _state.value.particles.filter { it.id != particle.id }
-            )
+            _state.value = _state.value.copy(particles = _state.value.particles.filter { it.id != particle.id })
         }
 
         // Check 1000 celebration
         if (newCount == 1000 && !prefs.hasCelebratedToday()) {
-            prefs.markCelebratedToday()
+            prefs.markCelebrated()
             triggerCelebration()
         }
     }
 
     private fun triggerCelebration() {
         _state.value = _state.value.copy(showCelebration = true)
-
-        // Long vibration pattern
         if (vibrator.hasVibrator()) {
-            val timings = longArrayOf(0, 100, 80, 100, 80, 100, 80, 200, 100, 300)
-            val amplitudes = intArrayOf(0, 255, 0, 255, 0, 255, 0, 255, 0, 255)
-            val effect = VibrationEffect.createWaveform(timings, amplitudes, -1)
-            vibrator.vibrate(effect)
+            vibrator.vibrate(VibrationEffect.createWaveform(
+                longArrayOf(0, 100, 80, 100, 80, 100, 80, 200, 100, 300),
+                intArrayOf(0, 255, 0, 255, 0, 255, 0, 255, 0, 255), -1
+            ))
         }
-
-        // Play celebration sound via ToneGenerator
         playCelebrationTone()
-
         celebrationJob?.cancel()
         celebrationJob = viewModelScope.launch {
             delay(4000)
@@ -140,10 +133,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     private fun playCelebrationTone() {
         viewModelScope.launch {
             try {
-                val toneGen = ToneGenerator(
-                    android.media.AudioManager.STREAM_NOTIFICATION, 80
-                )
-                // Rising arpeggio — like a simple fanfare
+                val tone = ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 80)
                 val notes = intArrayOf(
                     ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD,
                     ToneGenerator.TONE_CDMA_PRESSHOLDKEY_LITE,
@@ -151,44 +141,39 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
                     ToneGenerator.TONE_CDMA_ONE_MIN_BEEP,
                     ToneGenerator.TONE_CDMA_KEYPAD_VOLUME_KEY_LITE,
                 )
-                for ((i, note) in notes.withIndex()) {
-                    toneGen.startTone(note, 180)
+                for ((_, note) in notes.withIndex()) {
+                    tone.startTone(note, 180)
                     delay(120)
                 }
-                toneGen.release()
-            } catch (_: Exception) {
-                // Some devices don't support ToneGenerator well
-            }
+                tone.release()
+            } catch (_: Exception) {}
         }
     }
 
-    private fun vibrate(millis: Long) {
+    private fun vibrate(ms: Long) {
         if (vibrator.hasVibrator()) {
-            val effect = VibrationEffect.createOneShot(millis, VibrationEffect.DEFAULT_AMPLITUDE)
-            vibrator.vibrate(effect)
+            vibrator.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE))
         }
     }
 
-    fun toggleSettings() {
-        _state.value = _state.value.copy(showSettings = !_state.value.showSettings)
-    }
+    // --- Menu ---
+    fun toggleMenu() { _state.value = _state.value.copy(showMenu = !_state.value.showMenu) }
+    fun closeMenu() { _state.value = _state.value.copy(showMenu = false) }
 
+    // --- Settings ---
+    fun toggleSettings() { _state.value = _state.value.copy(showSettings = !_state.value.showSettings) }
+
+    // --- Notification ---
     fun updateNotificationEnabled(enabled: Boolean) {
         prefs.setNotificationEnabled(enabled)
         _state.value = _state.value.copy(notifyEnabled = enabled)
         notificationHelper.scheduleNotifications(prefs)
     }
 
-    fun updateNotificationTime(hour: Int, minute: Int) {
-        prefs.setNotificationHour(hour)
-        prefs.setNotificationMinute(minute)
-        _state.value = _state.value.copy(notifyHour = hour, notifyMinute = minute)
-        notificationHelper.scheduleNotifications(prefs)
-    }
-
-    fun updateNotificationCount(count: Int) {
-        prefs.setNotificationCount(count)
-        _state.value = _state.value.copy(notifyCount = count)
+    fun updateInterval(value: Int, unit: String) {
+        prefs.setNotifyIntervalValue(value)
+        prefs.setNotifyIntervalUnit(unit)
+        _state.value = _state.value.copy(notifyIntervalValue = value, notifyIntervalUnit = unit, randomTime = false)
         notificationHelper.scheduleNotifications(prefs)
     }
 
@@ -205,18 +190,29 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
         notificationHelper.scheduleNotifications(prefs)
     }
 
-    fun agreeToTerms() {
-        prefs.setAgreedToTerms()
-        _state.value = _state.value.copy(showAgreement = false)
+    // --- Theme ---
+    fun setThemeMode(mode: com.woodenfish.app.ui.theme.ThemeMode) {
+        prefs.setThemeMode(mode)
+        _state.value = _state.value.copy(themeMode = mode)
     }
 
-    fun showLegalPage(page: String) {
-        _state.value = _state.value.copy(showLegalPage = page)
+    // --- Language ---
+    fun setLanguage(lang: String) {
+        prefs.setLanguage(lang)
+        _state.value = _state.value.copy(language = lang)
     }
 
-    fun dismissLegalPage() {
-        _state.value = _state.value.copy(showLegalPage = null)
+    // --- Agreement ---
+    fun agreeToTerms() { prefs.setAgreedToTerms(); _state.value = _state.value.copy(showAgreement = false) }
+    fun showLegalPage(page: String) { _state.value = _state.value.copy(showLegalPage = page) }
+    fun dismissLegalPage() { _state.value = _state.value.copy(showLegalPage = null) }
+
+    // --- About ---
+    fun onVersionClick() {
+        val newCount = _state.value.aboutClickCount + 1
+        _state.value = _state.value.copy(aboutClickCount = newCount)
     }
+    fun resetAboutClicks() { _state.value = _state.value.copy(aboutClickCount = 0) }
 
     override fun onCleared() {
         super.onCleared()
