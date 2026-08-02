@@ -92,10 +92,15 @@ class PreferencesManager(context: Context) {
         prefs.edit().putInt(KEY_NOTIFY_END, hour).apply()
     }
 
-    // --- First launch ---
+    // --- First launch & agreement ---
     fun isFirstLaunch(): Boolean = prefs.getBoolean(KEY_FIRST_LAUNCH, true)
     fun markLaunched() {
         prefs.edit().putBoolean(KEY_FIRST_LAUNCH, false).apply()
+    }
+
+    fun hasAgreedToTerms(): Boolean = prefs.getBoolean(KEY_AGREED_TERMS, false)
+    fun setAgreedToTerms() {
+        prefs.edit().putBoolean(KEY_AGREED_TERMS, true).apply()
     }
 
     companion object {
@@ -111,5 +116,6 @@ class PreferencesManager(context: Context) {
         private const val KEY_NOTIFY_START = "notify_start"
         private const val KEY_NOTIFY_END = "notify_end"
         private const val KEY_FIRST_LAUNCH = "first_launch"
+        private const val KEY_AGREED_TERMS = "agreed_terms"
     }
 }

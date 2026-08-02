@@ -36,6 +36,8 @@ data class WoodenFishState(
     val notifyStart: Int = 8,
     val notifyEnd: Int = 21,
     val showSettings: Boolean = false,
+    val showAgreement: Boolean = false,
+    val showLegalPage: String? = null, // "agreement" or "privacy"
 )
 
 class WoodenFishViewModel(application: Application) : AndroidViewModel(application) {
@@ -72,6 +74,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
             randomTime = prefs.isRandomTime(),
             notifyStart = prefs.getNotificationStartHour(),
             notifyEnd = prefs.getNotificationEndHour(),
+            showAgreement = !prefs.hasAgreedToTerms(),
         )
     }
 
@@ -200,6 +203,19 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
         prefs.setNotificationEndHour(end)
         _state.value = _state.value.copy(notifyStart = start, notifyEnd = end)
         notificationHelper.scheduleNotifications(prefs)
+    }
+
+    fun agreeToTerms() {
+        prefs.setAgreedToTerms()
+        _state.value = _state.value.copy(showAgreement = false)
+    }
+
+    fun showLegalPage(page: String) {
+        _state.value = _state.value.copy(showLegalPage = page)
+    }
+
+    fun dismissLegalPage() {
+        _state.value = _state.value.copy(showLegalPage = null)
     }
 
     override fun onCleared() {

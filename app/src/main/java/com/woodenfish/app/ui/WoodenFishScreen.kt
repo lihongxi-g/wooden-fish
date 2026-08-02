@@ -1,103 +1,280 @@
 package com.woodenfish.app.ui
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.woodenfish.app.PlusOneParticle
 import com.woodenfish.app.WoodenFishState
 import com.woodenfish.app.WoodenFishViewModel
 import com.woodenfish.app.ui.theme.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
     val state by viewModel.state.collectAsState()
+    var menuExpanded by remember { mutableStateOf(false) }
 
     WoodenFishTheme {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            Column(
+        // --- Legal pages (full-screen) ---
+        when (state.showLegalPage) {
+            "agreement" -> {
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = { Text("用户协议") },
+                            navigationIcon = {
+                                TextButton(onClick = { viewModel.dismissLegalPage() }) {
+                                    Text("返回", color = MaterialTheme.colorScheme.primary)
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.background,
+                            )
+                        )
+                    }
+                ) { padding ->
+                    Box(modifier = Modifier.padding(padding)) {
+                        UserAgreementScreen(onBack = { viewModel.dismissLegalPage() })
+                    }
+                }
+                return@WoodenFishTheme
+            }
+            "privacy" -> {
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = { Text("隐私政策") },
+                            navigationIcon = {
+                                TextButton(onClick = { viewModel.dismissLegalPage() }) {
+                                    Text("返回", color = MaterialTheme.colorScheme.primary)
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.background,
+                            )
+                        )
+                    }
+                ) { padding ->
+                    Box(modifier = Modifier.padding(padding)) {
+                        PrivacyPolicyScreen(onBack = { viewModel.dismissLegalPage() })
+                    }
+                }
+                return@WoodenFishTheme
+            }
+        }
+
+        // --- Main screen ---
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Doki", fontWeight = FontWeight.Medium) },
+                    actions = {
+                        Box {
+                            IconButton(onClick = { menuExpanded = true }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.MoreVert,
+                                    contentDescription = "菜单",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = menuExpanded,
+                                onDismissRequest = { menuExpanded = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("用户协议") },
+                                    onClick = {
+                                        menuExpanded = false
+                                        viewModel.showLegalPage("agreement")
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("隐私政策") },
+                                    onClick = {
+                                        menuExpanded = false
+                                        viewModel.showLegalPage("privacy")
+                                    },
+                                )
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                    )
+                )
+            },
+            containerColor = MaterialTheme.colorScheme.background,
+        ) { padding ->
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .padding(padding)
             ) {
-                // Counter display
-                CounterDisplay(
-                    todayCount = state.todayCount,
-                    totalCount = state.totalCount,
-                )
-
-                Spacer(modifier = Modifier.height(40.dp))
-
-                // Fish body + particles overlay
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(220.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    // Floating +1 particles
-                    state.particles.forEach { particle ->
-                        PlusOneAnimation(particle = particle)
+                    // Counter display
+                    CounterDisplay(
+                        todayCount = state.todayCount,
+                        totalCount = state.totalCount,
+                    )
+
+                    Spacer(modifier = Modifier.height(40.dp))
+
+                    // Fish body + particles overlay
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.size(220.dp)
+                    ) {
+                        state.particles.forEach { particle ->
+                            PlusOneAnimation(particle = particle)
+                        }
+                        FishButton(onTap = { viewModel.onFishTap() })
                     }
 
-                    // The fish
-                    FishButton(onTap = { viewModel.onFishTap() })
+                    Spacer(modifier = Modifier.height(48.dp))
+
+                    // Settings toggle button
+                    TextButton(onClick = { viewModel.toggleSettings() }) {
+                        Text(
+                            text = if (state.showSettings) "收起设置 ▲" else "提醒设置 ▼",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp,
+                        )
+                    }
+
+                    // Settings panel
+                    AnimatedVisibility(
+                        visible = state.showSettings,
+                        enter = fadeIn() + slideInVertically(),
+                        exit = fadeOut()
+                    ) {
+                        SettingsPanel(state = state, viewModel = viewModel)
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(48.dp))
-
-                // Settings toggle button
-                TextButton(onClick = { viewModel.toggleSettings() }) {
-                    Text(
-                        text = if (state.showSettings) "收起设置 ▲" else "提醒设置 ▼",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 14.sp,
-                    )
-                }
-
-                // Settings panel
+                // Celebration overlay
                 AnimatedVisibility(
-                    visible = state.showSettings,
-                    enter = fadeIn() + slideInVertically(),
-                    exit = fadeOut()
+                    visible = state.showCelebration,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier.align(Alignment.Center)
                 ) {
-                    SettingsPanel(state = state, viewModel = viewModel)
+                    CelebrationOverlay()
                 }
             }
+        }
 
-            // Celebration overlay
-            AnimatedVisibility(
-                visible = state.showCelebration,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier.align(Alignment.Center)
+        // --- First-launch agreement dialog ---
+        if (state.showAgreement) {
+            AgreementDialog(
+                onAgree = { viewModel.agreeToTerms() },
+                onViewAgreement = { viewModel.showLegalPage("agreement") },
+                onViewPrivacy = { viewModel.showLegalPage("privacy") },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AgreementDialog(
+    onAgree: () -> Unit,
+    onViewAgreement: () -> Unit,
+    onViewPrivacy: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = { /* cannot dismiss — must agree */ },
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+        )
+    ) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                CelebrationOverlay()
+                Text(
+                    text = "欢迎使用 Doki",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+
+                Text(
+                    text = "Doki 是一款电子木鱼应用，帮助您在忙碌中寻找片刻宁静。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Text(
+                    text = "在使用前，请阅读并同意以下协议：",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+
+                // Links to agreements
+                TextButton(
+                    onClick = onViewAgreement,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("📄 查看《用户协议》", color = MaterialTheme.colorScheme.primary)
+                }
+
+                TextButton(
+                    onClick = onViewPrivacy,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("🔒 查看《隐私政策》", color = MaterialTheme.colorScheme.primary)
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+
+                Text(
+                    text = "点击"同意"即表示您已阅读并同意以上协议。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Button(
+                    onClick = onAgree,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                    ),
+                ) {
+                    Text("同意并继续", modifier = Modifier.padding(vertical = 4.dp))
+                }
             }
         }
     }
@@ -133,7 +310,6 @@ private fun CounterDisplay(todayCount: Int, totalCount: Long) {
 
 @Composable
 private fun FishButton(onTap: () -> Unit) {
-    // Press animation
     var pressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.92f else 1f,
@@ -155,7 +331,7 @@ private fun FishButton(onTap: () -> Unit) {
             .background(MaterialTheme.colorScheme.primaryContainer)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null, // no ripple — clean
+                indication = null,
                 onClick = {
                     pressed = true
                     onTap()
@@ -163,7 +339,6 @@ private fun FishButton(onTap: () -> Unit) {
             ),
         contentAlignment = Alignment.Center
     ) {
-        // Inner circle — the "fish" body
         Box(
             modifier = Modifier
                 .size(160.dp)
@@ -171,7 +346,6 @@ private fun FishButton(onTap: () -> Unit) {
                 .background(MaterialTheme.colorScheme.primary),
             contentAlignment = Alignment.Center
         ) {
-            // Small center dot — like a fish eye / mallet strike point
             Box(
                 modifier = Modifier
                     .size(20.dp)
@@ -181,7 +355,6 @@ private fun FishButton(onTap: () -> Unit) {
         }
     }
 
-    // Reset pressed state after animation
     LaunchedEffect(pressed) {
         if (pressed) {
             kotlinx.coroutines.delay(80)
@@ -193,30 +366,20 @@ private fun FishButton(onTap: () -> Unit) {
 @Composable
 private fun PlusOneAnimation(particle: PlusOneParticle) {
     val color = PlusOneColors[particle.colorIndex % PlusOneColors.size]
-
     val animatedOffsetY = remember { Animatable(0f) }
     val animatedAlpha = remember { Animatable(1f) }
     val animatedScale = remember { Animatable(1f) }
 
     LaunchedEffect(particle.id) {
         launch {
-            animatedOffsetY.animateTo(
-                targetValue = -200f,
-                animationSpec = tween(1000, easing = FastOutSlowInEasing)
-            )
+            animatedOffsetY.animateTo(-200f, tween(1000, easing = FastOutSlowInEasing))
         }
         launch {
-            animatedScale.animateTo(
-                targetValue = 1.4f,
-                animationSpec = tween(400, easing = FastOutSlowInEasing)
-            )
+            animatedScale.animateTo(1.4f, tween(400, easing = FastOutSlowInEasing))
         }
         launch {
             kotlinx.coroutines.delay(600)
-            animatedAlpha.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(400, easing = LinearEasing)
-            )
+            animatedAlpha.animateTo(0f, tween(400, easing = LinearEasing))
         }
     }
 
@@ -267,13 +430,12 @@ private fun SettingsPanel(state: WoodenFishState, viewModel: WoodenFishViewModel
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp), // no shadow
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Enable toggle
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -294,11 +456,9 @@ private fun SettingsPanel(state: WoodenFishState, viewModel: WoodenFishViewModel
                 )
             }
 
-            // Only show detailed settings when enabled
             if (state.notifyEnabled) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
 
-                // Random / Fixed time toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -320,7 +480,6 @@ private fun SettingsPanel(state: WoodenFishState, viewModel: WoodenFishViewModel
                 }
 
                 if (state.randomTime) {
-                    // Time range
                     Text(
                         "提醒时段: ${state.notifyStart}:00 - ${state.notifyEnd}:00",
                         style = MaterialTheme.typography.bodyMedium,
@@ -342,7 +501,6 @@ private fun SettingsPanel(state: WoodenFishState, viewModel: WoodenFishViewModel
                         )
                     }
 
-                    // Count
                     Text(
                         "每日提醒次数: ${state.notifyCount}",
                         style = MaterialTheme.typography.bodyMedium,
@@ -359,7 +517,6 @@ private fun SettingsPanel(state: WoodenFishState, viewModel: WoodenFishViewModel
                         )
                     )
                 } else {
-                    // Fixed time picker
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
