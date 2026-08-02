@@ -33,7 +33,7 @@ jobs:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace 2>&1 | tail -60
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         if: success()
