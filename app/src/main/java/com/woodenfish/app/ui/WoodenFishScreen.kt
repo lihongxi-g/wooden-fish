@@ -179,7 +179,9 @@ private fun FishCanvas(hammerOffset: Float, onTap: () -> Unit, modifier: Modifie
         val hammerAngle = hammerOffset * -25f  // swing from top-right
         val pivotX = cx + w * 0.35f; val pivotY = cy - h * 0.4f
         drawContext.canvas.save()
-        drawContext.canvas.rotate(hammerAngle, Offset(pivotX, pivotY))
+        drawContext.canvas.translate(pivotX, pivotY)
+        drawContext.canvas.rotate(hammerAngle)
+        drawContext.canvas.translate(-pivotX, -pivotY)
 
         // Mallet handle
         drawLine(color = Color(0xFF6D4C41), start = Offset(pivotX, pivotY), end = Offset(pivotX + w * 0.08f, pivotY + h * 0.35f), strokeWidth = 5f)
