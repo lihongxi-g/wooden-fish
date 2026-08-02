@@ -8,8 +8,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -89,11 +87,11 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
                     title = { Text("Doki", fontWeight = FontWeight.Medium) },
                     actions = {
                         Box {
-                            IconButton(onClick = { menuExpanded = true }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.MoreVert,
-                                    contentDescription = "菜单",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            TextButton(onClick = { menuExpanded = true }) {
+                                Text(
+                                    text = "⋮",
+                                    fontSize = 24.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                             DropdownMenu(
