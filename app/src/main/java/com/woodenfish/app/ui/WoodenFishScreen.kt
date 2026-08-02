@@ -24,6 +24,7 @@ import com.woodenfish.app.PlusOneParticle
 import com.woodenfish.app.WoodenFishState
 import com.woodenfish.app.WoodenFishViewModel
 import com.woodenfish.app.ui.theme.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -255,10 +256,10 @@ private fun AgreementDialog(
                     Text("🔒 查看《隐私政策》", color = MaterialTheme.colorScheme.primary)
                 }
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
 
                 Text(
-                    text = "点击"同意"即表示您已阅读并同意以上协议。",
+                    text = "点击同意即表示您已阅读并同意以上协议。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -455,7 +456,7 @@ private fun SettingsPanel(state: WoodenFishState, viewModel: WoodenFishViewModel
             }
 
             if (state.notifyEnabled) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

@@ -33,7 +33,7 @@ fun UserAgreementScreen(onBack: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Section(title = "1. 服务说明") {
-            Text(body = "Doki（以下简称"本应用"）是一款电子木鱼应用，旨在为用户提供减压、冥想辅助和娱乐功能。本应用所有功能均为免费提供。")
+            Text(body = "Doki（以下简称本应用）是一款电子木鱼应用，旨在为用户提供减压、冥想辅助和娱乐功能。本应用所有功能均为免费提供。")
         }
 
         Section(title = "2. 用户行为规范") {

@@ -29,7 +29,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        viewModel = WoodenFishViewModel(this)
+        viewModel = WoodenFishViewModel(application)
 
         // Create notification channel early
         NotificationHelper.createChannel(this)
