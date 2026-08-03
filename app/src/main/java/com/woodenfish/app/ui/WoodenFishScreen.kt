@@ -217,8 +217,15 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
                 Switch(checked = state.randomTime, onCheckedChange = { viewModel.updateRandomTime(it); viewModel.toast(t(lang, "已切换", "已切換", "Changed")) }, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primaryContainer))
             }
             if (state.randomTime) {
-                Text("${t(lang, "提醒时段", "提醒時段", "Time range")}: ${state.notifyStart}:00 - ${state.notifyEnd}:00", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) { HrP(t(lang, "起始","起始","Start"), state.notifyStart, { viewModel.updateTimeRange(it, state.notifyEnd) }); HrP(t(lang, "结束","結束","End"), state.notifyEnd, { viewModel.updateTimeRange(state.notifyStart, it) }) }
+                Text(t(lang, "提醒时段（每天随机 3 个时间提醒）", "提醒時段（每天隨機 3 個時間提醒）", "Time range (3 random reminders daily)"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TimeRow(t(lang, "起始时间", "起始時間", "Start"), state.notifyStartMin, lang) { m ->
+                    if (m >= state.notifyEndMin) viewModel.toast(t(lang, "起始时间需早于结束时间", "起始時間需早於結束時間", "Start must be earlier than end"))
+                    else viewModel.updateNotifyStartMin(m)
+                }
+                TimeRow(t(lang, "结束时间", "結束時間", "End"), state.notifyEndMin, lang) { m ->
+                    if (m <= state.notifyStartMin) viewModel.toast(t(lang, "结束时间需晚于起始时间", "結束時間需晚於起始時間", "End must be later than start"))
+                    else viewModel.updateNotifyEndMin(m)
+                }
             } else { CustomInterval(state, viewModel, lang) }
         }
     }
@@ -241,8 +248,28 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
     Button(onClick = { val v = txt.toIntOrNull() ?: 1; viewModel.updateInterval(v, unit); viewModel.toast(t(lang, "间隔已保存", "間隔已儲存", "Interval saved")) }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) { Text(t(lang, "保存", "儲存", "Save")) }
 }
 
-@Composable private fun HrP(label: String, value: Int, onChange: (Int) -> Unit, range: IntRange = 6..23) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) { Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(32.dp)); Slider(value = value.toFloat(), onValueChange = { onChange(it.toInt()) }, valueRange = range.first.toFloat()..range.last.toFloat(), steps = range.last - range.first - 1, colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary), modifier = Modifier.weight(1f)); Text("$value", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(24.dp)) }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable private fun TimeRow(label: String, minute: Int, lang: String, onChange: (Int) -> Unit) {
+    var showPicker by remember { mutableStateOf(false) }
+    val hour = minute / 60; val min = minute % 60
+    Row(Modifier.fillMaxWidth().clickable { showPicker = true }, verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+        Text(String.format("%02d:%02d", hour, min), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+    }
+    if (showPicker) {
+        val pickerState = rememberTimePickerState(initialHour = hour, initialMinute = min, is24Hour = true)
+        Dialog(onDismissRequest = { showPicker = false }) {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    TimePicker(state = pickerState)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { showPicker = false }) { Text(t(lang, "取消", "取消", "Cancel")) }
+                        TextButton(onClick = { onChange(pickerState.hour * 60 + pickerState.minute); showPicker = false }) { Text(t(lang, "确定", "確定", "OK"), color = MaterialTheme.colorScheme.primary) }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // ═══════════════ APPEARANCE (theme color only) ═══════════════
@@ -317,7 +344,7 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 1.5", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 1.6", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)

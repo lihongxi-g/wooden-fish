@@ -58,14 +58,14 @@ class NotificationHelper(private val context: Context) {
 
         if (prefs.isRandomTime()) {
             // Random times within range
-            val start = prefs.getNotificationStartHour()
-            val end = prefs.getNotificationEndHour()
-            if (start >= end) return
+            val startMin = prefs.getNotificationStartMin()
+            val endMin = prefs.getNotificationEndMin()
+            if (startMin >= endMin) return
             val count = 3
-            val segment = ((end - start) * 60) / count
+            val segment = (endMin - startMin) / count
             val now = System.currentTimeMillis()
             for (i in 0 until count) {
-                val mins = start * 60 + i * segment + Random.nextInt(0, segment.coerceAtLeast(1))
+                val mins = startMin + i * segment + Random.nextInt(0, segment.coerceAtLeast(1))
                 val trigger = calcTrigger(mins / 60, mins % 60)
                 if (trigger > now) scheduleAlarm(alarmManager, trigger, i)
             }
@@ -97,8 +97,9 @@ class NotificationHelper(private val context: Context) {
     private fun scheduleAlarm(am: AlarmManager, trigger: Long, code: Int) {
         val intent = Intent(context, ReminderReceiver::class.java)
         val pi = PendingIntent.getBroadcast(context, code, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        try { am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi) }
-        catch (_: SecurityException) { am.set(AlarmManager.RTC_WAKEUP, trigger, pi) }
+        // 5分钟窗口非精确闹钟：无需 SCHEDULE_EXACT_ALARM/USE_EXACT_ALARM 特殊权限，
+        // 安装时不提示"闹钟和提醒"，系统到点自动拉起，App 无需后台常驻
+        am.setWindow(AlarmManager.RTC_WAKEUP, trigger, 5 * 60_000L, pi)
     }
 
     fun cancelAll() {

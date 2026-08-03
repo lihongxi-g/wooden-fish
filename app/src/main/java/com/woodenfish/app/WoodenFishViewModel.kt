@@ -33,7 +33,7 @@ data class WoodenFishState(
     val showCelebration: Boolean = false,
     val notifyEnabled: Boolean = false,
     val notifyIntervalValue: Int = 1, val notifyIntervalUnit: String = "小时",
-    val randomTime: Boolean = true, val notifyStart: Int = 8, val notifyEnd: Int = 21,
+    val randomTime: Boolean = true, val notifyStartMin: Int = 480, val notifyEndMin: Int = 1260,
     val showAgreement: Boolean = false, val showLegalPage: String? = null,
     val showMenu: Boolean = false, val hammerOffset: Float = 0f,
     val aboutClickCount: Int = 0,
@@ -68,7 +68,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
         _state.value = _state.value.copy(todayCount = todayCount, totalCount = totalCount,
             notifyEnabled = prefs.isNotificationEnabled(), notifyIntervalValue = prefs.getNotifyIntervalValue(),
             notifyIntervalUnit = prefs.getNotifyIntervalUnit(), randomTime = prefs.isRandomTime(),
-            notifyStart = prefs.getNotificationStartHour(), notifyEnd = prefs.getNotificationEndHour(),
+            notifyStartMin = prefs.getNotificationStartMin(), notifyEndMin = prefs.getNotificationEndMin(),
             showAgreement = !prefs.hasAgreedTerms(), themeColorIndex = prefs.getThemeColorIndex(),
             themeMode = prefs.getThemeMode(), language = prefs.getLanguage(),
             soundVolume = prefs.getSoundVolume(), vibrationIntensity = prefs.getVibrationIntensity(),
@@ -183,7 +183,8 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     fun updateNotificationEnabled(e: Boolean) { prefs.setNotificationEnabled(e); _state.value = _state.value.copy(notifyEnabled = e); notificationHelper.scheduleNotifications(prefs) }
     fun updateInterval(v: Int, u: String) { prefs.setNotifyIntervalValue(v); prefs.setNotifyIntervalUnit(u); _state.value = _state.value.copy(notifyIntervalValue = v, notifyIntervalUnit = u, randomTime = false); notificationHelper.scheduleNotifications(prefs) }
     fun updateRandomTime(r: Boolean) { prefs.setRandomTime(r); _state.value = _state.value.copy(randomTime = r); notificationHelper.scheduleNotifications(prefs) }
-    fun updateTimeRange(s: Int, e: Int) { prefs.setNotificationStartHour(s); prefs.setNotificationEndHour(e); _state.value = _state.value.copy(notifyStart = s, notifyEnd = e); notificationHelper.scheduleNotifications(prefs) }
+    fun updateNotifyStartMin(m: Int) { prefs.setNotificationStartMin(m); _state.value = _state.value.copy(notifyStartMin = m); notificationHelper.scheduleNotifications(prefs) }
+    fun updateNotifyEndMin(m: Int) { prefs.setNotificationEndMin(m); _state.value = _state.value.copy(notifyEndMin = m); notificationHelper.scheduleNotifications(prefs) }
     fun setThemeColor(i: Int) { prefs.setThemeColorIndex(i); _state.value = _state.value.copy(themeColorIndex = i) }
     fun setThemeMode(m: com.woodenfish.app.ui.theme.ThemeMode) { prefs.setThemeMode(m); _state.value = _state.value.copy(themeMode = m) }
     fun setLanguage(l: String) { prefs.setLanguage(l); _state.value = _state.value.copy(language = l) }

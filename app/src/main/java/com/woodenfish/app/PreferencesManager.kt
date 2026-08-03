@@ -35,10 +35,16 @@ class PreferencesManager(context: Context) {
     fun setNotifyIntervalUnit(u: String) = p.edit().putString("interval_unit", u).apply()
     fun isRandomTime() = p.getBoolean("random_time", true)
     fun setRandomTime(v: Boolean) = p.edit().putBoolean("random_time", v).apply()
-    fun getNotificationStartHour() = p.getInt("notify_start", 8)
-    fun setNotificationStartHour(h: Int) = p.edit().putInt("notify_start", h).apply()
-    fun getNotificationEndHour() = p.getInt("notify_end", 21)
-    fun setNotificationEndHour(h: Int) = p.edit().putInt("notify_end", h).apply()
+    fun getNotificationStartMin(): Int {
+        return if (p.contains("notify_start_min")) p.getInt("notify_start_min", 480)
+        else p.getInt("notify_start", 8) * 60
+    }
+    fun setNotificationStartMin(m: Int) = p.edit().putInt("notify_start_min", m).apply()
+    fun getNotificationEndMin(): Int {
+        return if (p.contains("notify_end_min")) p.getInt("notify_end_min", 1260)
+        else p.getInt("notify_end", 21) * 60
+    }
+    fun setNotificationEndMin(m: Int) = p.edit().putInt("notify_end_min", m).apply()
 
     // ─── First launch ───
     fun isFirstLaunch() = p.getBoolean("first_launch", true)
