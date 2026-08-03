@@ -18,15 +18,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -46,7 +47,6 @@ private fun t(lang: String, zhCN: String, zhTW: String, en: String) = when (lang
     else -> zhCN
 }
 
-// ─── Predefined intervals ───
 private val hourPresets = listOf(1, 2, 3, 6, 12)
 private val minPresets = listOf(15, 30, 45, 60, 120)
 private val dayPresets = listOf(1, 2, 3, 5, 7)
@@ -58,12 +58,17 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
     val context = LocalContext.current
     val lang = state.language
     val isDark = androidx.compose.foundation.isSystemInDarkTheme()
-    val menuExpanded = state.showMenu
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
     var settingsPage by remember { mutableStateOf<String?>(null) }
     var showAbout by remember { mutableStateOf(false) }
 
+    // Sync drawer state with showMenu
+    LaunchedEffect(state.showMenu) {
+        if (state.showMenu) drawerState.open() else drawerState.close()
+    }
+
     WoodenFishTheme(themeMode = state.themeMode, darkTheme = isDark) {
-        // ── Legal pages (full‑screen) ──
+        // ── Legal pages ──
         when (state.showLegalPage) {
             "agreement" -> {
                 Scaffold(topBar = { TopAppBar(title = { Text(t(lang, "用户协议", "用戶協議", "User Agreement")) }, navigationIcon = { TextButton(onClick = { viewModel.dismissLegalPage() }) { Text(t(lang, "返回","返回","Back"), color = MaterialTheme.colorScheme.primary) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) }) { p -> Box(Modifier.padding(p)) { UserAgreementScreen {} } }
@@ -75,7 +80,6 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
             }
         }
 
-        // ── Settings sub‑pages ──
         when (settingsPage) {
             "notify" -> {
                 Scaffold(topBar = { TopAppBar(title = { Text(t(lang, "提醒设置", "提醒設定", "Notifications")) }, navigationIcon = { TextButton(onClick = { settingsPage = null }) { Text(t(lang, "返回","返回","Back"), color = MaterialTheme.colorScheme.primary) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) }) { p -> Box(Modifier.padding(p)) { NotifySettingsPage(state, viewModel, lang) } }
@@ -92,9 +96,9 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
             return@WoodenFishTheme
         }
 
-        // ── Drawer + Main Content ──
+        // ── Main content ──
         ModalNavigationDrawer(
-            drawerState = rememberDrawerState(if (menuExpanded) DrawerValue.Open else DrawerValue.Closed),
+            drawerState = drawerState,
             gesturesEnabled = true,
             drawerContent = {
                 ModalDrawerSheet(modifier = Modifier.width(280.dp)) {
@@ -121,15 +125,16 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
                             CounterDisplay(state.todayCount, state.totalCount, lang)
                             Spacer(Modifier.height(32.dp))
                             Box(contentAlignment = Alignment.Center, modifier = Modifier.size(240.dp)) {
-                                state.particles.forEach { particle -> PlusOneAnim(particle) }
-                                FishCanvas(
-                                    hammerOffset = state.hammerOffset,
-                                    onTap = { viewModel.onFishTap() },
-                                    modifier = Modifier.size(200.dp)
-                                )
+                                state.particles.forEach { PlusOneAnim(it) }
+                                val interactionSource = remember { MutableInteractionSource() }
+                                Box(
+                                    modifier = Modifier.size(200.dp).clickable(indication = null, interactionSource = interactionSource) { viewModel.onFishTap() },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    FishCanvas(hammerOffset = state.hammerOffset, modifier = Modifier.size(190.dp))
+                                }
                             }
                         }
-                        // Celebration
                         AnimatedVisibility(visible = state.showCelebration, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.Center)) {
                             Text(t(lang, "🎉 功德圆满 🎉\n今日已敲 1000 次！", "🎉 功德圓滿 🎉\n今日已敲 1000 次！", "🎉 1000 Taps!\nMerit complete!"), style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontSize = 26.sp), color = MaterialTheme.colorScheme.tertiary, textAlign = TextAlign.Center)
                         }
@@ -138,74 +143,81 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
             }
         )
 
-        // ── Agreement Dialog ──
         if (state.showAgreement) {
             AgreementDialog(onAgree = { viewModel.agreeToTerms() }, onViewAgreement = { viewModel.showLegalPage("agreement") }, onViewPrivacy = { viewModel.showLegalPage("privacy") }, lang)
         }
     }
 }
 
-// ═══════════════════ CANVAS FISH ═══════════════════
+// ═══════════════════ 3D WOODEN FISH ═══════════════════
 @Composable
-private fun FishCanvas(hammerOffset: Float, onTap: () -> Unit, modifier: Modifier) {
+private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
     val scale = remember { Animatable(1f) }
     LaunchedEffect(hammerOffset) {
         if (hammerOffset > 0.5f) { scale.snapTo(0.93f); scale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh)) }
     }
 
-    Canvas(
-        modifier = modifier
-            .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), CircleShape)
-            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onTap() }
-    ) {
+    Canvas(modifier = modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value }) {
         val w = size.width; val h = size.height; val cx = w / 2; val cy = h / 2
 
-        // ── Fish body (ellipse) ──
-        drawOval(color = Color(0xFF8D6E63), topLeft = Offset(cx - w * 0.44f, cy - h * 0.25f), size = Size(w * 0.88f, h * 0.5f))
-        // ── Top highlight ──
-        drawOval(color = Color(0xFFA1887F), topLeft = Offset(cx - w * 0.38f, cy - h * 0.22f), size = Size(w * 0.76f, h * 0.36f))
-        // ── Slit (mouth) ──
-        val slitPath = Path().apply {
-            moveTo(cx - w * 0.2f, cy + h * 0.1f)
-            cubicTo(cx - w * 0.1f, cy + h * 0.18f, cx + w * 0.1f, cy + h * 0.18f, cx + w * 0.2f, cy + h * 0.1f)
-        }
-        drawPath(slitPath, color = Color(0xFF4E342E), style = Stroke(width = 3f))
-        // ── Strike dot ──
-        drawCircle(color = Color(0xFFD7CCC8), radius = w * 0.04f, center = Offset(cx, cy - h * 0.02f))
+        // ── Shadow drop ──
+        drawOval(color = Color.Black.copy(alpha = 0.15f), topLeft = Offset(cx - w * 0.4f, cy - h * 0.18f + 4.dp.toPx()), size = Size(w * 0.8f, h * 0.46f))
 
-        // ── Mallet ──
-        val hammerAngle = hammerOffset * -25f  // swing from top-right
-        val pivotX = cx + w * 0.35f; val pivotY = cy - h * 0.4f
+        // ── Fish body — 3D gradient ──
+        val bodyGrad = Brush.verticalGradient(listOf(Color(0xFFA1887F), Color(0xFF6D4C41), Color(0xFF4E342E)), startY = cy - h * 0.25f, endY = cy + h * 0.25f)
+        drawOval(brush = bodyGrad, topLeft = Offset(cx - w * 0.42f, cy - h * 0.25f), size = Size(w * 0.84f, h * 0.5f))
+
+        // ── Rim highlight ──
+        drawOval(color = Color(0xFFBCAAA4), topLeft = Offset(cx - w * 0.42f, cy - h * 0.23f), size = Size(w * 0.84f, h * 0.12f))
+
+        // ── Wood grain lines ──
+        for (i in -2..2) {
+            val lx = cx + i * w * 0.12f
+            drawOval(color = Color.Black.copy(alpha = 0.06f), topLeft = Offset(lx - w * 0.15f, cy - h * 0.15f), size = Size(w * 0.3f, h * 0.3f))
+        }
+
+        // ── Slit (opening) ──
+        val slit = Path().apply {
+            moveTo(cx - w * 0.22f, cy + h * 0.08f)
+            cubicTo(cx - w * 0.1f, cy + h * 0.2f, cx + w * 0.1f, cy + h * 0.2f, cx + w * 0.22f, cy + h * 0.08f)
+            cubicTo(cx + w * 0.1f, cy + h * 0.14f, cx - w * 0.1f, cy + h * 0.14f, cx - w * 0.22f, cy + h * 0.08f)
+        }
+        drawPath(slit, color = Color(0xFF3E2723))
+        drawPath(slit, color = Color.Black.copy(alpha = 0.3f), style = Stroke(1f))
+
+        // ── Strike pad (center circle) ──
+        drawCircle(color = Color(0xFFEFEBE9), radius = w * 0.08f, center = Offset(cx, cy - h * 0.02f))
+        drawCircle(color = Color(0xFFD7CCC8), radius = w * 0.045f, center = Offset(cx, cy - h * 0.02f))
+
+        // ── Mallet (rotate around pivot) ──
+        val hammerAngle = hammerOffset * -30f
+        val pivotX = cx + w * 0.38f; val pivotY = cy - h * 0.35f
         drawContext.canvas.save()
         drawContext.canvas.translate(pivotX, pivotY)
         drawContext.canvas.rotate(hammerAngle)
         drawContext.canvas.translate(-pivotX, -pivotY)
-
-        // Mallet handle
-        drawLine(color = Color(0xFF6D4C41), start = Offset(pivotX, pivotY), end = Offset(pivotX + w * 0.08f, pivotY + h * 0.35f), strokeWidth = 5f)
+        // Handle
+        drawLine(color = Color(0xFF5D4037), start = Offset(pivotX, pivotY), end = Offset(pivotX + w * 0.06f, pivotY + h * 0.38f), strokeWidth = 5f)
+        // Mallet head shadow
+        drawCircle(color = Color.Black.copy(alpha = 0.15f), radius = w * 0.095f, center = Offset(pivotX + w * 0.06f + 2.dp.toPx(), pivotY + h * 0.38f + 2.dp.toPx()))
         // Mallet head
-        drawCircle(color = Color(0xFF8D6E63), radius = w * 0.09f, center = Offset(pivotX + w * 0.08f, pivotY + h * 0.35f))
+        drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFBCAAA4), Color(0xFF6D4C41)), center = Offset(pivotX + w * 0.06f, pivotY + h * 0.38f), radius = w * 0.095f), radius = w * 0.095f, center = Offset(pivotX + w * 0.06f, pivotY + h * 0.38f))
         drawContext.canvas.restore()
     }
 }
 
-// ═══════════════════ +1 PARTICLE ═══════════════════
+// ═══════════════════ +1 ═══════════════════
 @Composable
 private fun PlusOneAnim(particle: PlusOneParticle) {
     val color = PlusOneColors[particle.colorIndex % PlusOneColors.size]
     val animatedY = remember { Animatable(0f) }
     val animAlpha = remember { Animatable(1f) }
-
-    // Position: 0=左上, 1=正上, 2=右上
     val offsetX = when (particle.positionIndex) { 0 -> -60f; 2 -> 60f; else -> 0f }
 
     LaunchedEffect(particle.id) {
         launch { animatedY.animateTo(-180f, tween(900, easing = FastOutSlowInEasing)) }
         launch { kotlinx.coroutines.delay(500); animAlpha.animateTo(0f, tween(400)) }
     }
-
     Box(Modifier.offset(x = offsetX.dp, y = animatedY.value.dp).graphicsLayer { alpha = animAlpha.value }) {
         Text("+1", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = color)
     }
@@ -225,7 +237,7 @@ private fun CounterDisplay(todayCount: Int, totalCount: Long, lang: String) {
     }
 }
 
-// ═══════════════════ DRAWER MENU ═══════════════════
+// ═══════════════════ DRAWER ═══════════════════
 @Composable
 private fun DrawerContent(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, onSettings: (String) -> Unit, onAbout: () -> Unit) {
     Column(Modifier.fillMaxHeight().padding(vertical = 24.dp)) {
@@ -252,34 +264,26 @@ private fun DrawerItem(label: String, onClick: () -> Unit) {
 @Composable
 private fun NotifySettingsPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // Enable toggle
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(t(lang, "开启提醒", "開啟提醒", "Enable"), style = MaterialTheme.typography.bodyLarge)
             Switch(checked = state.notifyEnabled, onCheckedChange = { viewModel.updateNotificationEnabled(it) }, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primaryContainer))
         }
-        // Permission hint
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)), shape = RoundedCornerShape(8.dp)) {
             Text(t(lang, "💡 提示：请在系统设置中确保已授予 Doki 通知权限，否则提醒可能无法送达。", "💡 提示：請在系統設定中確保已授予 Doki 通知權限。", "💡 Tip: Please ensure notification permission is granted in system settings."), modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
         }
-
         if (state.notifyEnabled) {
             Divider()
-
-            // Random toggle
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(t(lang, "随机时间", "隨機時間", "Random"), style = MaterialTheme.typography.bodyMedium)
                 Switch(checked = state.randomTime, onCheckedChange = { viewModel.updateRandomTime(it) }, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primaryContainer))
             }
-
             if (state.randomTime) {
-                // Random time range
                 Text("${t(lang, "提醒时段", "提醒時段", "Time range")}: ${state.notifyStart}:00 - ${state.notifyEnd}:00", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     HourPicker2(t(lang, "起始","起始","Start"), state.notifyStart, { viewModel.updateTimeRange(it, state.notifyEnd) })
                     HourPicker2(t(lang, "结束","結束","End"), state.notifyEnd, { viewModel.updateTimeRange(state.notifyStart, it) })
                 }
             } else {
-                // Custom interval
                 CustomInterval(state, viewModel, lang)
             }
         }
@@ -295,17 +299,10 @@ private fun CustomInterval(state: WoodenFishState, viewModel: WoodenFishViewMode
     var showPresets by remember { mutableStateOf(false) }
 
     Text("${t(lang, "自定义间隔", "自訂間隔", "Custom interval")}（${t(lang, "从设定后开始计时", "從設定後開始計時", "counts from now")}）", style = MaterialTheme.typography.bodyMedium)
-
-    // Input row
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         OutlinedTextField(value = inputText, onValueChange = { inputText = it.filter { c -> c.isDigit() }.take(4) }, modifier = Modifier.weight(1f), singleLine = true, label = { Text(t(lang, "数值", "數值", "Value")) }, shape = RoundedCornerShape(8.dp))
-        // Unit selector
-        units.forEach { u ->
-            FilterChip(selected = selectedUnit == u, onClick = { selectedUnit = u }, label = { Text(u, fontSize = 12.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer))
-        }
+        units.forEach { u -> FilterChip(selected = selectedUnit == u, onClick = { selectedUnit = u }, label = { Text(u, fontSize = 12.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer)) }
     }
-
-    // Presets
     TextButton(onClick = { showPresets = !showPresets }) { Text(t(lang, "预设值 ▼", "預設值 ▼", "Presets ▼"), fontSize = 13.sp) }
     if (showPresets) {
         val list = when {
@@ -313,20 +310,10 @@ private fun CustomInterval(state: WoodenFishState, viewModel: WoodenFishViewMode
             selectedUnit.contains(t(lang, "分钟", "分鐘", "min")) -> minPresets
             else -> dayPresets
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            list.forEach { v ->
-                AssistChip(onClick = { inputText = v.toString() }, label = { Text("$v", fontSize = 12.sp) }, shape = RoundedCornerShape(8.dp))
-            }
-        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) { list.forEach { v -> AssistChip(onClick = { inputText = v.toString() }, label = { Text("$v", fontSize = 12.sp) }, shape = RoundedCornerShape(8.dp)) } }
     }
-
     Spacer(Modifier.height(8.dp))
-    Button(onClick = {
-        val v = inputText.toIntOrNull() ?: 1
-        viewModel.updateInterval(v, selectedUnit)
-    }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
-        Text(t(lang, "保存间隔", "儲存間隔", "Save Interval"))
-    }
+    Button(onClick = { val v = inputText.toIntOrNull() ?: 1; viewModel.updateInterval(v, selectedUnit) }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) { Text(t(lang, "保存间隔", "儲存間隔", "Save Interval")) }
 }
 
 @Composable
@@ -338,7 +325,7 @@ private fun HourPicker2(label: String, value: Int, onChange: (Int) -> Unit, rang
     }
 }
 
-// ═══════════════════ APPEARANCE SETTINGS ═══════════════════
+// ═══════════════════ APPEARANCE ═══════════════════
 @Composable
 private fun AppearanceSettingsPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -348,9 +335,7 @@ private fun AppearanceSettingsPage(state: WoodenFishState, viewModel: WoodenFish
             LangChip("繁體中文", "zh-TW", state.language) { viewModel.setLanguage(it) }
             LangChip("English", "en", state.language) { viewModel.setLanguage(it) }
         }
-
         Divider()
-
         Text(t(lang, "界面主题", "界面主題", "Theme"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ThemeChip(t(lang, "跟随系统", "跟隨系統", "System"), ThemeMode.SYSTEM, state.themeMode) { viewModel.setThemeMode(it) }
@@ -361,41 +346,30 @@ private fun AppearanceSettingsPage(state: WoodenFishState, viewModel: WoodenFish
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun LangChip(label: String, code: String, current: String, onSelect: (String) -> Unit) {
+@Composable private fun LangChip(label: String, code: String, current: String, onSelect: (String) -> Unit) {
     FilterChip(selected = current == code, onClick = { onSelect(code) }, label = { Text(label, fontSize = 13.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer))
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ThemeChip(label: String, mode: ThemeMode, current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+@Composable private fun ThemeChip(label: String, mode: ThemeMode, current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
     FilterChip(selected = current == mode, onClick = { onSelect(mode) }, label = { Text(label, fontSize = 13.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer))
 }
 
-// ═══════════════════ ABOUT PAGE ═══════════════════
+// ═══════════════════ ABOUT ═══════════════════
 @Composable
 private fun AboutPage(viewModel: WoodenFishViewModel, lang: String, context: android.content.Context) {
+    val clickCount = viewModel.state.collectAsState().value.aboutClickCount
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Spacer(Modifier.height(40.dp))
         Text("Doki", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         Text(t(lang, "电子木鱼 · 功德 +1", "電子木魚 · 功德 +1", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
-
-        // Version — tap 5 times
-        val clickCount = viewModel.state.collectAsState().value.aboutClickCount
         TextButton(onClick = {
             viewModel.onVersionClick()
             if (clickCount + 1 >= 5) {
                 viewModel.resetAboutClicks()
-                val intent = Intent(Intent.ACTION_SENDTO).apply {
-                    data = Uri.parse("mailto:zhif0776@hotmail.com")
-                    putExtra(Intent.EXTRA_SUBJECT, "Doki 应用反馈")
-                }
-                context.startActivity(intent)
+                context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki 应用反馈") })
             }
-        }) {
-            Text("${t(lang, "版本", "版本", "Version")} 1.0.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        }) { Text("${t(lang, "版本", "版本", "Version")} 1.0.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         Spacer(Modifier.height(24.dp))
@@ -403,7 +377,7 @@ private fun AboutPage(viewModel: WoodenFishViewModel, lang: String, context: and
     }
 }
 
-// ═══════════════════ AGREEMENT DIALOG ═══════════════════
+// ═══════════════════ AGREEMENT ═══════════════════
 @Composable
 private fun AgreementDialog(onAgree: () -> Unit, onViewAgreement: () -> Unit, onViewPrivacy: () -> Unit, lang: String) {
     Dialog(onDismissRequest = {}, properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)) {
