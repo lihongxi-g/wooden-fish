@@ -118,6 +118,7 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SubPage(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
     Scaffold(topBar = { TopAppBar(title = { Text(title) }, navigationIcon = { TextButton(onClick = onBack) { Text("\u2190", fontSize = 18.sp, color = MaterialTheme.colorScheme.primary) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) }) { p -> Box(Modifier.padding(p)) { content() } }
