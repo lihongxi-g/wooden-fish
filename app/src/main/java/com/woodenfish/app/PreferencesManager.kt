@@ -53,6 +53,10 @@ class PreferencesManager(context: Context) {
     fun setFixedTimeMin(m: Int) = p.edit().putInt("fixed_time_min", m).apply()
     fun getCalendarEventId() = p.getLong("calendar_event_id", -1L)
     fun setCalendarEventId(id: Long) = p.edit().putLong("calendar_event_id", id).apply()
+    fun getSelectedCalendarId() = p.getLong("selected_calendar_id", -1L)
+    fun setSelectedCalendarId(id: Long) = p.edit().putLong("selected_calendar_id", id).apply()
+    fun getSelectedCalendarName() = p.getString("selected_calendar_name", null)
+    fun setSelectedCalendarName(n: String?) = p.edit().putString("selected_calendar_name", n).apply()
 
     // ─── First launch ───
     fun isFirstLaunch() = p.getBoolean("first_launch", true)

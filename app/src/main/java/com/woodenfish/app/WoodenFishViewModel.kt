@@ -45,6 +45,7 @@ data class WoodenFishState(
     val soundVolume: Float = 0.7f, val vibrationIntensity: Float = 0.8f, val tapSpeed: Float = 1.0f,
     val vibrationSupported: Boolean = true, val soundSupported: Boolean = true,
     val toastMessage: String? = null,
+    val selectedCalendarName: String? = null,
 )
 
 class WoodenFishViewModel(application: Application) : AndroidViewModel(application) {
@@ -75,7 +76,8 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
             showAgreement = !prefs.hasAgreedTerms(), themeColorIndex = prefs.getThemeColorIndex(),
             themeMode = prefs.getThemeMode(), language = prefs.getLanguage(),
             soundVolume = prefs.getSoundVolume(), vibrationIntensity = prefs.getVibrationIntensity(), tapSpeed = prefs.getTapSpeed(),
-            vibrationSupported = vibrator.hasVibrator(), soundSupported = true)
+            vibrationSupported = vibrator.hasVibrator(), soundSupported = true,
+            selectedCalendarName = prefs.getSelectedCalendarName())
         setupSoundPool(application)
     }
 
@@ -214,21 +216,20 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
         if (wasFixed) { CalendarSync.deleteEvent(getApplication(), prefs.getCalendarEventId().takeIf { it > 0 }); prefs.setCalendarEventId(-1) }
         notificationHelper.scheduleNotifications(prefs)
     }
-    fun enableFixedTime(): Boolean {
-        val newId = CalendarSync.writeDailyReminder(getApplication(), prefs.getFixedTimeMin(), prefs.getCalendarEventId().takeIf { it > 0 })
+    fun enableFixedTime(calendarId: Long, calendarName: String): Boolean {
+        val newId = CalendarSync.writeDailyReminder(getApplication(), prefs.getFixedTimeMin(), calendarId, prefs.getCalendarEventId().takeIf { it > 0 })
         if (newId != null) {
             prefs.setCalendarEventId(newId); prefs.setFixedTimeEnabled(true)
-            _state.value = _state.value.copy(fixedTimeEnabled = true)
+            prefs.setSelectedCalendarId(calendarId); prefs.setSelectedCalendarName(calendarName)
+            _state.value = _state.value.copy(fixedTimeEnabled = true, selectedCalendarName = calendarName)
             notificationHelper.cancelAll()
             return true
         }
-        toast(if (CalendarSync.hasWritableCalendar(getApplication()))
-            if (_state.value.language == "en") "Failed to write calendar, check calendar permission" else if (_state.value.language == "zh-TW") "寫入日曆失敗，請檢查日曆權限" else "写入日历失败，请检查日历权限"
-            else if (_state.value.language == "en") "No usable calendar found, add an account first" else if (_state.value.language == "zh-TW") "系統沒有可用日曆，請先在系統日曆新增帳號" else "系统没有可用日历，请先在系统日历中添加账号")
+        toast(if (_state.value.language == "en") "Failed to write calendar" else if (_state.value.language == "zh-TW") "寫入日曆失敗" else "写入日历失败")
         return false
     }
     fun updateFixedTimeMin(m: Int) {
-        val newId = CalendarSync.writeDailyReminder(getApplication(), m, prefs.getCalendarEventId().takeIf { it > 0 })
+        val newId = CalendarSync.writeDailyReminder(getApplication(), m, prefs.getSelectedCalendarId().takeIf { it > 0 }, prefs.getCalendarEventId().takeIf { it > 0 })
         if (newId != null) {
             prefs.setCalendarEventId(newId); prefs.setFixedTimeMin(m); prefs.setFixedTimeEnabled(true)
             _state.value = _state.value.copy(fixedTimeMin = m, fixedTimeEnabled = true)

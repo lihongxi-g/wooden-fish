@@ -12,12 +12,38 @@ import java.util.TimeZone
 
 object CalendarSync {
 
+    data class CalendarInfo(val id: Long, val name: String, val isGoogle: Boolean)
+
+    /** 列出所有可写的日历（系统本地日历 / Google 日历等账号），用于让用户选择提醒日历 */
+    fun listCalendars(context: Context): List<CalendarInfo> {
+        val result = mutableListOf<CalendarInfo>()
+        fun query(selection: String?) {
+            try {
+                val projection = arrayOf(Calendars._ID, Calendars.CALENDAR_DISPLAY_NAME, Calendars.ACCOUNT_NAME)
+                context.contentResolver.query(Calendars.CONTENT_URI, projection, selection, null, null)?.use { c ->
+                    while (c.moveToNext()) {
+                        val id = c.getLong(0)
+                        val display = c.getString(1) ?: "日历"
+                        val account = c.getString(2) ?: ""
+                        val isGoogle = account.contains("google", true) || display.contains("google", true)
+                        result.add(CalendarInfo(id, display, isGoogle))
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+        // 优先可写日历
+        query("${Calendars.CALENDAR_ACCESS_LEVEL} >= ${Calendars.CAL_ACCESS_CONTRIBUTOR}")
+        // 兜底：任意日历
+        if (result.isEmpty()) query(null)
+        return result
+    }
+
     /** 写入每日固定时间提醒（每日重复事件 + 准时提醒），返回新事件ID；失败返回 null。写入前先删除旧事件。 */
-    fun writeDailyReminder(context: Context, minute: Int, oldEventId: Long?): Long? {
+    fun writeDailyReminder(context: Context, minute: Int, calendarId: Long?, oldEventId: Long?): Long? {
         return try {
             val cr = context.contentResolver
             if (oldEventId != null && oldEventId > 0) deleteEvent(cr, oldEventId)
-            val calId = findWritableCalendar(cr) ?: return null
+            val calId = calendarId?.takeIf { it > 0 } ?: findWritableCalendar(cr) ?: return null
             val cal = Calendar.getInstance().apply {
                 set(Calendar.HOUR_OF_DAY, minute / 60)
                 set(Calendar.MINUTE, minute % 60)

@@ -231,17 +231,32 @@ private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
 @Composable private fun NotifySettingsPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, context: android.content.Context) {
     val gcalInstalled = remember { isPackageInstalled(context, "com.google.android.calendar") }
     var showGcalDialog by remember { mutableStateOf(false) }
-    val tryEnableFixedTime: (Boolean, () -> Unit) -> Unit = { installed, ask ->
-        if (installed) {
-            if (viewModel.enableFixedTime()) viewModel.toast(t(lang, "已写入系统日历，由日历提醒", "已寫入系統日曆，由日曆提醒", "Saved to system calendar"))
-            else viewModel.toast(t(lang, "写入日历失败，请检查系统日历", "寫入日曆失敗，請檢查系統日曆", "Failed to save to calendar"))
+    var showCalendarPicker by remember { mutableStateOf(false) }
+    var availableCalendars by remember { mutableStateOf<List<com.woodenfish.app.CalendarSync.CalendarInfo>>(emptyList()) }
+
+    fun pickCalendar(c: com.woodenfish.app.CalendarSync.CalendarInfo) {
+        showCalendarPicker = false
+        if (viewModel.enableFixedTime(c.id, c.name)) {
+            viewModel.toast(t(lang, "已写入${c.name}，由日历提醒", "已寫入${c.name}，由日曆提醒", "Saved to ${c.name}"))
         } else {
-            ask()
+            viewModel.toast(t(lang, "写入日历失败", "寫入日曆失敗", "Failed to save to calendar"))
+        }
+    }
+
+    // 检测日历并进入启用流程：无日历→提示；多个→弹窗选择；仅 Google 未装→先提示安装
+    val startFixedTime: () -> Unit = {
+        val cals = com.woodenfish.app.CalendarSync.listCalendars(context)
+        availableCalendars = cals
+        when {
+            cals.isEmpty() -> viewModel.toast(t(lang, "没有可用的日历，请先在系统日历中添加账号", "沒有可用的日曆，請先在系統日曆中新增帳號", "No calendar available, add an account first"))
+            !cals.any { it.isGoogle } && !gcalInstalled -> showGcalDialog = true
+            cals.size == 1 -> pickCalendar(cals[0])
+            else -> showCalendarPicker = true
         }
     }
     val calendarLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
         if (grants[Manifest.permission.READ_CALENDAR] == true && grants[Manifest.permission.WRITE_CALENDAR] == true) {
-            tryEnableFixedTime(gcalInstalled) { showGcalDialog = true }
+            startFixedTime()
         } else {
             viewModel.toast(t(lang, "需要日历权限才能使用固定时间提醒", "需要日曆權限才能使用固定時間提醒", "Calendar permission required"))
         }
@@ -263,7 +278,7 @@ private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
                     if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED
                         && ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
                     ) {
-                        tryEnableFixedTime(gcalInstalled) { showGcalDialog = true }
+                        startFixedTime()
                     } else {
                         calendarLauncher.launch(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR))
                     }
@@ -273,6 +288,10 @@ private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
                 state.fixedTimeEnabled -> {
                     Text(t(lang, "自定义时间（每天固定这个时间提醒）", "自訂時間（每天固定這個時間提醒）", "Custom time (remind daily at this fixed time)"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     TimePickerButton(state.fixedTimeMin, lang) { viewModel.updateFixedTimeMin(it) }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(t(lang, "提醒日历：", "提醒日曆：", "Calendar: ") + (state.selectedCalendarName ?: t(lang, "系统日历", "系統日曆", "System")), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { startFixedTime() }) { Text(t(lang, "切换", "切換", "Change"), fontSize = 13.sp) }
+                    }
                     Text(t(lang, "提醒已写入系统日历（Google 日历需登录 Google 账号并开启同步），由日历 App 到点提醒，Doki 无需后台运行。可在日历中修改或删除。", "提醒已寫入系統日曆（Google 日曆需登入 Google 帳號並開啟同步），由日曆 App 到點提醒，Doki 無需後台運行。可在日曆中修改或刪除。", "Reminder saved to system calendar (Google Calendar needs a Google account with sync on). The calendar app alerts you; Doki runs nothing in background. Editable in calendar."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (!gcalInstalled) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -302,7 +321,28 @@ private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
             title = { Text(t(lang, "未检测到 Google 日历", "未偵測到 Google 日曆", "Google Calendar not found")) },
             text = { Text(t(lang, "Doki 仍会写入系统日历，手机自带日历可以正常提醒；但要同步到云端需要 Google 日历。要现在去安装吗？", "Doki 仍會寫入系統日曆，手機內建日曆可以正常提醒；但要同步到雲端需要 Google 日曆。要現在去安裝嗎？", "Doki will still save to the system calendar and your built-in calendar app will remind you. Cloud sync requires Google Calendar. Install it now?")) },
             confirmButton = { TextButton(onClick = { showGcalDialog = false; openCalendarStore(context) }) { Text(t(lang, "安装 Google 日历", "安裝 Google 日曆", "Install Google Calendar")) } },
-            dismissButton = { TextButton(onClick = { showGcalDialog = false; if (viewModel.enableFixedTime()) viewModel.toast(t(lang, "已写入系统日历", "已寫入系統日曆", "Saved to system calendar")) else viewModel.toast(t(lang, "写入日历失败，请检查系统日历", "寫入日曆失敗，請檢查系統日曆", "Failed to save to calendar")) }) { Text(t(lang, "继续使用系统日历", "繼續使用系統日曆", "Use system calendar")) } }
+            dismissButton = { TextButton(onClick = { showGcalDialog = false; if (availableCalendars.isNotEmpty()) pickCalendar(availableCalendars[0]) else viewModel.toast(t(lang, "没有可用的日历", "沒有可用的日曆", "No calendar available")) }) { Text(t(lang, "继续使用系统日历", "繼續使用系統日曆", "Use system calendar")) } }
+        )
+    }
+    if (showCalendarPicker) {
+        AlertDialog(
+            onDismissRequest = { showCalendarPicker = false },
+            title = { Text(t(lang, "选择提醒日历", "選擇提醒日曆", "Choose reminder calendar")) },
+            text = {
+                Column {
+                    availableCalendars.forEach { c ->
+                        TextButton(onClick = { pickCalendar(c) }, modifier = Modifier.fillMaxWidth()) {
+                            Text((if (c.isGoogle) "Google 日历 · " else "") + c.name, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                    if (availableCalendars.none { it.isGoogle }) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(t(lang, "未检测到 Google 日历账号：仅本地提醒，安装 Google 日历并登录后可云端同步", "未偵測到 Google 日曆帳號：僅本地提醒，安裝 Google 日曆並登入後可雲端同步", "No Google Calendar account found: local reminder only. Install Google Calendar and sign in for cloud sync"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { showCalendarPicker = false }) { Text(t(lang, "取消", "取消", "Cancel")) } }
         )
     }
 }
@@ -464,27 +504,34 @@ private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 2.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 2.0.1", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-        OutlinedButton(onClick = {
-            com.woodenfish.app.Updater.checkForUpdate(context) { info ->
-                (context as? android.app.Activity)?.runOnUiThread {
-                    if (info == null) {
-                        Toast.makeText(context, t(lang, "已是最新版本", "已是最新版本", "Up to date"), Toast.LENGTH_SHORT).show()
-                    } else {
-                        android.app.AlertDialog.Builder(context)
-                            .setTitle("发现新版本 v${info.version}")
-                            .setMessage(t(lang, "是否下载更新？", "是否下載更新？", "Download update?"))
-                            .setPositiveButton(t(lang, "更新", "更新", "Update")) { _, _ -> viewModel.downloadAndInstall(context, info.apkUrl) }
-                            .setNegativeButton(t(lang, "稍后", "稍後", "Later"), null)
-                            .show()
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = {
+                com.woodenfish.app.Updater.checkForUpdate(context) { info ->
+                    (context as? android.app.Activity)?.runOnUiThread {
+                        if (info == null) {
+                            Toast.makeText(context, t(lang, "已是最新版本", "已是最新版本", "Up to date"), Toast.LENGTH_SHORT).show()
+                        } else {
+                            android.app.AlertDialog.Builder(context)
+                                .setTitle("发现新版本 v${info.version}")
+                                .setMessage(t(lang, "是否下载更新？", "是否下載更新？", "Download update?"))
+                                .setPositiveButton(t(lang, "更新", "更新", "Update")) { _, _ -> viewModel.downloadAndInstall(context, info.apkUrl) }
+                                .setNegativeButton(t(lang, "稍后", "稍後", "Later"), null)
+                                .show()
+                        }
                     }
                 }
+            }, shape = RoundedCornerShape(8.dp)) {
+                Text(t(lang, "检查更新", "檢查更新", "Check for updates"))
             }
-        }, shape = RoundedCornerShape(8.dp)) {
-            Text(t(lang, "检查更新", "檢查更新", "Check for updates"))
+            OutlinedButton(onClick = {
+                try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/lihongxi-g/wooden-fish/releases"))) } catch (_: Exception) {}
+            }, shape = RoundedCornerShape(8.dp)) {
+                Text(t(lang, "GitHub 下载", "GitHub 下載", "GitHub Releases"))
+            }
         }
         Spacer(Modifier.height(24.dp))
         Text(t(lang, "一款简洁的电子木鱼应用。\n敲击木鱼，积累功德，平和心境。", "一款簡潔的電子木魚應用。\n敲擊木魚，積累功德，平和心境。", "A simple digital wooden fish app.\nTap to accumulate merit, find peace of mind."), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
