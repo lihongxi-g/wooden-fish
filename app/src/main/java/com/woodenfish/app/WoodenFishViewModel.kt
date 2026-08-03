@@ -86,21 +86,25 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
         prefs.incrementTotal()
         val totalCount = prefs.getTotalCount()
 
-        // Vibrate
+        // Vibrate + hammer animation
         vibrate(25)
-
-        // Trigger hammer animation
         _state.value = _state.value.copy(hammerOffset = 1f)
         viewModelScope.launch {
             delay(150)
             _state.value = _state.value.copy(hammerOffset = 0f)
         }
 
-        // Random color + random position (0=左上, 1=正上, 2=右上)
+        // Random +1 particle
         val colorIndex = Random.nextInt(com.woodenfish.app.ui.theme.PlusOneColors.size)
         val posIndex = Random.nextInt(3)
         val particle = PlusOneParticle(id = particleCounter++, colorIndex = colorIndex, positionIndex = posIndex)
-        _state.value = _state.value.copy(particles = _state.value.particles + particle)
+
+        // Update count state
+        _state.value = _state.value.copy(
+            todayCount = newCount,
+            totalCount = totalCount,
+            particles = _state.value.particles + particle,
+        )
 
         viewModelScope.launch {
             delay(1200)
