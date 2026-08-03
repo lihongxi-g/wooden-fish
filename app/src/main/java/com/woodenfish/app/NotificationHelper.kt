@@ -53,6 +53,7 @@ class NotificationHelper(private val context: Context) {
     fun scheduleNotifications(prefs: PreferencesManager) {
         cancelAll()
         if (!prefs.isNotificationEnabled()) return
+        if (prefs.isFixedTimeEnabled()) return  // 固定时间模式：由系统日历提醒，无需闹钟
 
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 

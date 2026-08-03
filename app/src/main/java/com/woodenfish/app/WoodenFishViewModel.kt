@@ -34,6 +34,7 @@ data class WoodenFishState(
     val notifyEnabled: Boolean = false,
     val notifyIntervalValue: Int = 1, val notifyIntervalUnit: String = "小时",
     val randomTime: Boolean = true, val notifyStartMin: Int = 480, val notifyEndMin: Int = 1260,
+    val fixedTimeEnabled: Boolean = false, val fixedTimeMin: Int = 540,
     val showAgreement: Boolean = false, val showLegalPage: String? = null,
     val showMenu: Boolean = false, val hammerOffset: Float = 0f,
     val aboutClickCount: Int = 0,
@@ -69,6 +70,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
             notifyEnabled = prefs.isNotificationEnabled(), notifyIntervalValue = prefs.getNotifyIntervalValue(),
             notifyIntervalUnit = prefs.getNotifyIntervalUnit(), randomTime = prefs.isRandomTime(),
             notifyStartMin = prefs.getNotificationStartMin(), notifyEndMin = prefs.getNotificationEndMin(),
+            fixedTimeEnabled = prefs.isFixedTimeEnabled(), fixedTimeMin = prefs.getFixedTimeMin(),
             showAgreement = !prefs.hasAgreedTerms(), themeColorIndex = prefs.getThemeColorIndex(),
             themeMode = prefs.getThemeMode(), language = prefs.getLanguage(),
             soundVolume = prefs.getSoundVolume(), vibrationIntensity = prefs.getVibrationIntensity(),
@@ -180,9 +182,54 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     fun clearToast() { _state.value = _state.value.copy(toastMessage = null) }
     fun toggleMenu() { _state.value = _state.value.copy(showMenu = !_state.value.showMenu) }
     fun closeMenu() { _state.value = _state.value.copy(showMenu = false) }
-    fun updateNotificationEnabled(e: Boolean) { prefs.setNotificationEnabled(e); _state.value = _state.value.copy(notifyEnabled = e); notificationHelper.scheduleNotifications(prefs) }
+    fun updateNotificationEnabled(e: Boolean) {
+        prefs.setNotificationEnabled(e)
+        _state.value = _state.value.copy(notifyEnabled = e)
+        if (!e) {
+            CalendarSync.deleteEvent(getApplication(), prefs.getCalendarEventId().takeIf { it > 0 })
+            prefs.setCalendarEventId(-1)
+            notificationHelper.cancelAll()
+        } else if (prefs.isFixedTimeEnabled()) {
+            // 固定时间模式：日历事件已存在，无需额外调度
+        } else {
+            notificationHelper.scheduleNotifications(prefs)
+        }
+    }
     fun updateInterval(v: Int, u: String) { prefs.setNotifyIntervalValue(v); prefs.setNotifyIntervalUnit(u); _state.value = _state.value.copy(notifyIntervalValue = v, notifyIntervalUnit = u, randomTime = false); notificationHelper.scheduleNotifications(prefs) }
-    fun updateRandomTime(r: Boolean) { prefs.setRandomTime(r); _state.value = _state.value.copy(randomTime = r); notificationHelper.scheduleNotifications(prefs) }
+    fun selectRandomTime() {
+        val wasFixed = _state.value.fixedTimeEnabled
+        prefs.setRandomTime(true); prefs.setFixedTimeEnabled(false)
+        _state.value = _state.value.copy(randomTime = true, fixedTimeEnabled = false)
+        if (wasFixed) { CalendarSync.deleteEvent(getApplication(), prefs.getCalendarEventId().takeIf { it > 0 }); prefs.setCalendarEventId(-1) }
+        notificationHelper.scheduleNotifications(prefs)
+    }
+    fun selectInterval() {
+        val wasFixed = _state.value.fixedTimeEnabled
+        prefs.setRandomTime(false); prefs.setFixedTimeEnabled(false)
+        _state.value = _state.value.copy(randomTime = false, fixedTimeEnabled = false)
+        if (wasFixed) { CalendarSync.deleteEvent(getApplication(), prefs.getCalendarEventId().takeIf { it > 0 }); prefs.setCalendarEventId(-1) }
+        notificationHelper.scheduleNotifications(prefs)
+    }
+    fun enableFixedTime(): Boolean {
+        val newId = CalendarSync.writeDailyReminder(getApplication(), prefs.getFixedTimeMin(), prefs.getCalendarEventId().takeIf { it > 0 })
+        if (newId != null) {
+            prefs.setCalendarEventId(newId); prefs.setFixedTimeEnabled(true)
+            _state.value = _state.value.copy(fixedTimeEnabled = true)
+            notificationHelper.cancelAll()
+            return true
+        }
+        return false
+    }
+    fun updateFixedTimeMin(m: Int) {
+        val newId = CalendarSync.writeDailyReminder(getApplication(), m, prefs.getCalendarEventId().takeIf { it > 0 })
+        if (newId != null) {
+            prefs.setCalendarEventId(newId); prefs.setFixedTimeMin(m); prefs.setFixedTimeEnabled(true)
+            _state.value = _state.value.copy(fixedTimeMin = m, fixedTimeEnabled = true)
+            toast(if (_state.value.language == "en") "Time updated in calendar" else if (_state.value.language == "zh-TW") "時間已更新到日曆" else "时间已更新到日历")
+        } else {
+            toast(if (_state.value.language == "en") "Failed to update calendar" else if (_state.value.language == "zh-TW") "更新日曆失敗" else "更新日历失败")
+        }
+    }
     fun updateNotifyStartMin(m: Int) { prefs.setNotificationStartMin(m); _state.value = _state.value.copy(notifyStartMin = m); notificationHelper.scheduleNotifications(prefs) }
     fun updateNotifyEndMin(m: Int) { prefs.setNotificationEndMin(m); _state.value = _state.value.copy(notifyEndMin = m); notificationHelper.scheduleNotifications(prefs) }
     fun setThemeColor(i: Int) { prefs.setThemeColorIndex(i); _state.value = _state.value.copy(themeColorIndex = i) }

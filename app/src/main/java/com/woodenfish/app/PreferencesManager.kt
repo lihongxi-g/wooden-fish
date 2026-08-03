@@ -46,6 +46,14 @@ class PreferencesManager(context: Context) {
     }
     fun setNotificationEndMin(m: Int) = p.edit().putInt("notify_end_min", m).apply()
 
+    // ─── Fixed time (calendar) ───
+    fun isFixedTimeEnabled() = p.getBoolean("fixed_time_enabled", false)
+    fun setFixedTimeEnabled(v: Boolean) = p.edit().putBoolean("fixed_time_enabled", v).apply()
+    fun getFixedTimeMin() = p.getInt("fixed_time_min", 540)
+    fun setFixedTimeMin(m: Int) = p.edit().putInt("fixed_time_min", m).apply()
+    fun getCalendarEventId() = p.getLong("calendar_event_id", -1L)
+    fun setCalendarEventId(id: Long) = p.edit().putLong("calendar_event_id", id).apply()
+
     // ─── First launch ───
     fun isFirstLaunch() = p.getBoolean("first_launch", true)
     fun markLaunched() = p.edit().putBoolean("first_launch", false).apply()

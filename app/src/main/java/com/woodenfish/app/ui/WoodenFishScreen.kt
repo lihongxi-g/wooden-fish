@@ -1,9 +1,13 @@
 package com.woodenfish.app.ui
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -32,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.woodenfish.app.PlusOneParticle
@@ -82,7 +87,7 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
 
         // Sub-pages
         when (page) {
-            "notify" -> { SubPage(t(lang, "提醒设置", "提醒設定", "Notifications"), onBack = { page = null }) { NotifySettingsPage(state, viewModel, lang) }; return@WoodenFishTheme }
+            "notify" -> { SubPage(t(lang, "提醒设置", "提醒設定", "Notifications"), onBack = { page = null }) { NotifySettingsPage(state, viewModel, lang, context) }; return@WoodenFishTheme }
             "appearance" -> { SubPage(t(lang, "界面主题", "界面主題", "Theme"), onBack = { page = null }) { AppearancePage(state, viewModel, lang, isDark) }; return@WoodenFishTheme }
             "language" -> { SubPage(t(lang, "语言", "語言", "Language"), onBack = { page = null }) { LanguagePage(state, viewModel, lang) }; return@WoodenFishTheme }
             "sound" -> { SubPage(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration"), onBack = { page = null }) { SoundVibrationPage(state, viewModel, lang) }; return@WoodenFishTheme }
@@ -202,7 +207,15 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
 
 // ═══════════════ NOTIFICATION SETTINGS ═══════════════
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable private fun NotifySettingsPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
+@Composable private fun NotifySettingsPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, context: android.content.Context) {
+    val calendarLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            if (viewModel.enableFixedTime()) viewModel.toast(t(lang, "已写入系统日历，由日历提醒", "已寫入系統日曆，由日曆提醒", "Saved to system calendar"))
+            else viewModel.toast(t(lang, "写入日历失败，请检查系统日历", "寫入日曆失敗，請檢查系統日曆", "Failed to save to calendar"))
+        } else {
+            viewModel.toast(t(lang, "需要日历权限才能使用固定时间提醒", "需要日曆權限才能使用固定時間提醒", "Calendar permission required"))
+        }
+    }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(t(lang, "开启提醒", "開啟提醒", "Enable"), style = MaterialTheme.typography.bodyLarge)
@@ -212,21 +225,37 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
             Text(t(lang, "提示：请在系统设置中确保已授予 Doki 通知权限，否则提醒可能无法送达。", "提示：請在系統設定中確保已授予 Doki 通知權限。", "Tip: Please ensure notification permission is granted in system settings."), modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
         }
         if (state.notifyEnabled) { Divider()
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(t(lang, "随机时间", "隨機時間", "Random"), style = MaterialTheme.typography.bodyMedium)
-                Switch(checked = state.randomTime, onCheckedChange = { viewModel.updateRandomTime(it); viewModel.toast(t(lang, "已切换", "已切換", "Changed")) }, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primaryContainer))
+            Text(t(lang, "提醒方式", "提醒方式", "Reminder mode"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ModeChip(t(lang, "随机时间", "隨機時間", "Random"), state.randomTime && !state.fixedTimeEnabled) { viewModel.selectRandomTime() }
+                ModeChip(t(lang, "自定义间隔", "自訂間隔", "Interval"), !state.randomTime && !state.fixedTimeEnabled) { viewModel.selectInterval() }
+                ModeChip(t(lang, "固定时间·日历", "固定時間·日曆", "Fixed (Calendar)"), state.fixedTimeEnabled) {
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED) {
+                        if (viewModel.enableFixedTime()) viewModel.toast(t(lang, "已写入系统日历，由日历提醒", "已寫入系統日曆，由日曆提醒", "Saved to system calendar"))
+                        else viewModel.toast(t(lang, "写入日历失败，请检查系统日历", "寫入日曆失敗，請檢查系統日曆", "Failed to save to calendar"))
+                    } else {
+                        calendarLauncher.launch(Manifest.permission.WRITE_CALENDAR)
+                    }
+                }
             }
-            if (state.randomTime) {
-                Text(t(lang, "提醒时段（每天随机 3 个时间提醒）", "提醒時段（每天隨機 3 個時間提醒）", "Time range (3 random reminders daily)"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                TimeRow(t(lang, "起始时间", "起始時間", "Start"), state.notifyStartMin, lang) { m ->
-                    if (m >= state.notifyEndMin) viewModel.toast(t(lang, "起始时间需早于结束时间", "起始時間需早於結束時間", "Start must be earlier than end"))
-                    else viewModel.updateNotifyStartMin(m)
+            when {
+                state.fixedTimeEnabled -> {
+                    TimeRow(t(lang, "每日时间", "每日時間", "Daily time"), state.fixedTimeMin, lang) { viewModel.updateFixedTimeMin(it) }
+                    Text(t(lang, "提醒已写入系统日历（Google 日历需登录 Google 账号并开启同步），由日历 App 到点提醒，Doki 无需后台运行。可在日历中修改或删除。", "提醒已寫入系統日曆（Google 日曆需登入 Google 帳號並開啟同步），由日曆 App 到點提醒，Doki 無需後台運行。可在日曆中修改或刪除。", "Reminder saved to system calendar (Google Calendar needs a Google account with sync on). The calendar app alerts you; Doki runs nothing in background. Editable in calendar."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                TimeRow(t(lang, "结束时间", "結束時間", "End"), state.notifyEndMin, lang) { m ->
-                    if (m <= state.notifyStartMin) viewModel.toast(t(lang, "结束时间需晚于起始时间", "結束時間需晚於起始時間", "End must be later than start"))
-                    else viewModel.updateNotifyEndMin(m)
+                state.randomTime -> {
+                    Text(t(lang, "提醒时段（每天随机 3 个时间提醒）", "提醒時段（每天隨機 3 個時間提醒）", "Time range (3 random reminders daily)"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TimeRow(t(lang, "起始时间", "起始時間", "Start"), state.notifyStartMin, lang) { m ->
+                        if (m >= state.notifyEndMin) viewModel.toast(t(lang, "起始时间需早于结束时间", "起始時間需早於結束時間", "Start must be earlier than end"))
+                        else viewModel.updateNotifyStartMin(m)
+                    }
+                    TimeRow(t(lang, "结束时间", "結束時間", "End"), state.notifyEndMin, lang) { m ->
+                        if (m <= state.notifyStartMin) viewModel.toast(t(lang, "结束时间需晚于起始时间", "結束時間需晚於起始時間", "End must be later than start"))
+                        else viewModel.updateNotifyEndMin(m)
+                    }
                 }
-            } else { CustomInterval(state, viewModel, lang) }
+                else -> { CustomInterval(state, viewModel, lang) }
+            }
         }
     }
 }
@@ -270,6 +299,11 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable private fun ModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(selected = selected, onClick = onClick, label = { Text(label, fontSize = 12.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer))
 }
 
 // ═══════════════ APPEARANCE (theme color only) ═══════════════
@@ -344,7 +378,7 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 1.6", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 1.7", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
