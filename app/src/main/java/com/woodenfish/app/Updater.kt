@@ -1,5 +1,6 @@
 package com.woodenfish.app
 
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -82,18 +83,46 @@ object Updater {
         }.start()
     }
 
-    /** 调起系统安装器（用户确认后安装）。用 applicationContext，避免 Activity 销毁后崩溃 */
+    /** 安装 APK：优先系统 PackageInstaller 会话（不依赖 ROM 的 intent 路由），失败回退 ACTION_VIEW */
     fun install(context: Context, file: File) {
+        val appCtx = context.applicationContext
         try {
-            val appCtx = context.applicationContext
-            val uri = FileProvider.getUriForFile(appCtx, "${appCtx.packageName}.fileprovider", file)
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            val installer = appCtx.packageManager.packageInstaller
+            val params = android.content.pm.PackageInstaller.SessionParams(android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+                setAppPackageName(appCtx.packageName)
+                setSize(file.length())
             }
-            appCtx.startActivity(intent)
+            val sessionId = installer.createSession(params)
+            val session = installer.openSession(sessionId)
+            try {
+                file.inputStream().use { input ->
+                    session.openWrite("doki_update", 0, file.length()).use { out -> input.copyTo(out) }
+                }
+                val pi = PendingIntent.getBroadcast(
+                    appCtx, 100, Intent(appCtx, UpdateResultReceiver::class.java),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                session.commit(pi.intentSender)
+                session.close()
+            } catch (e: Exception) {
+                try { session.abandon() } catch (_: Exception) {}
+                throw e
+            }
+            return
         } catch (e: Exception) {
-            try { android.widget.Toast.makeText(context.applicationContext, "无法打开安装器，请到 GitHub 手动下载", android.widget.Toast.LENGTH_SHORT).show() } catch (_: Exception) {}
+            // 回退：ACTION_VIEW 调起系统安装器
+            try {
+                val uri = FileProvider.getUriForFile(appCtx, "${appCtx.packageName}.fileprovider", file)
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                appCtx.startActivity(intent)
+            } catch (e2: Exception) {
+                try {
+                    android.widget.Toast.makeText(appCtx, "无法打开安装器，请到 GitHub 手动下载：github.com/lihongxi-g/wooden-fish/releases", android.widget.Toast.LENGTH_LONG).show()
+                } catch (_: Exception) {}
+            }
         }
     }
 

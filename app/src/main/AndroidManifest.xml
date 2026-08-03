@@ -52,6 +52,10 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <receiver
+            android:name=".UpdateResultReceiver"
+            android:exported="false" />
+
     </application>
 
 </manifest>
