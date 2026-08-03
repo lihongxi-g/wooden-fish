@@ -263,8 +263,7 @@ private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
             }
             when {
                 state.fixedTimeEnabled -> {
-                    Text(t(lang, "提醒时间（每天固定一个时间，不是随机）", "提醒時間（每天固定一個時間，不是隨機）", "Reminder time (one fixed time daily, not random)"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    TimeRow(t(lang, "每天", "每天", "Every day"), state.fixedTimeMin, lang, emphasized = true) { viewModel.updateFixedTimeMin(it) }
+                    TimeRow(t(lang, "每日时间", "每日時間", "Daily time"), state.fixedTimeMin, lang) { viewModel.updateFixedTimeMin(it) }
                     Text(t(lang, "提醒已写入系统日历（Google 日历需登录 Google 账号并开启同步），由日历 App 到点提醒，Doki 无需后台运行。可在日历中修改或删除。", "提醒已寫入系統日曆（Google 日曆需登入 Google 帳號並開啟同步），由日曆 App 到點提醒，Doki 無需後台運行。可在日曆中修改或刪除。", "Reminder saved to system calendar (Google Calendar needs a Google account with sync on). The calendar app alerts you; Doki runs nothing in background. Editable in calendar."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (!gcalInstalled) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -317,20 +316,12 @@ private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable private fun TimeRow(label: String, minute: Int, lang: String, emphasized: Boolean = false, onChange: (Int) -> Unit) {
+@Composable private fun TimeRow(label: String, minute: Int, lang: String, onChange: (Int) -> Unit) {
     var showPicker by remember { mutableStateOf(false) }
     val hour = minute / 60; val min = minute % 60
     Row(Modifier.fillMaxWidth().clickable { showPicker = true }, verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-        if (emphasized) {
-            OutlinedButton(onClick = { showPicker = true }, shape = RoundedCornerShape(8.dp)) {
-                Text(String.format("%02d:%02d", hour, min), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
-            }
-        } else {
-            TextButton(onClick = { showPicker = true }) {
-                Text(String.format("%02d:%02d", hour, min), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
-            }
-        }
+        Text(String.format("%02d:%02d", hour, min), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
     }
     if (showPicker) {
         val pickerState = rememberTimePickerState(initialHour = hour, initialMinute = min, is24Hour = true)
@@ -441,7 +432,7 @@ private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 1.8.1", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 1.8", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
