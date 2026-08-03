@@ -5,6 +5,7 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.media.SoundPool
 import android.media.ToneGenerator
 import android.os.Build
 import android.os.VibrationEffect
@@ -53,6 +54,11 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     private var particleCounter = 0
     private var celebrationJob: Job? = null
 
+    // 常驻 SoundPool：音效预加载，敲击即时播放（低延迟、快速连敲可叠加）
+    private var soundPool: SoundPool? = null
+    private var woodSoundId = 0
+    @Volatile private var soundLoaded = false
+
     init {
         vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
             application.getSystemService(VibratorManager::class.java).defaultVibrator
@@ -67,6 +73,62 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
             themeMode = prefs.getThemeMode(), language = prefs.getLanguage(),
             soundVolume = prefs.getSoundVolume(), vibrationIntensity = prefs.getVibrationIntensity(),
             vibrationSupported = vibrator.hasVibrator(), soundSupported = true)
+        setupSoundPool(application)
+    }
+
+    private fun setupSoundPool(context: Application) {
+        try {
+            val sp = SoundPool.Builder()
+                .setMaxStreams(8)
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                .build()
+            soundPool = sp
+            val file = java.io.File(context.cacheDir, "wood_sound.wav")
+            if (!file.exists() || file.length() == 0L) {
+                writeWav(file, synthesizeWoodPcm(1.0f))
+            }
+            woodSoundId = sp.load(file.absolutePath, 1)
+            sp.setOnLoadCompleteListener { _, _, status -> if (status == 0) soundLoaded = true }
+        } catch (_: Exception) {
+            try { soundPool?.release() } catch (_: Exception) {}
+            soundPool = null
+        }
+    }
+
+    private fun synthesizeWoodPcm(vol: Float): ShortArray {
+        val rate = 44100; val dur = 0.04; val f0 = 280.0
+        val n = (rate * dur).toInt(); val buf = ShortArray(n)
+        for (i in 0 until n) {
+            val t = i.toDouble() / rate
+            val env = exp(-t * 80.0)
+            var s = 0.0
+            for (h in 1..4) s += sin(2 * PI * f0 * h * t) * (1.0 / h) * env
+            buf[i] = (s * vol * Short.MAX_VALUE * 0.6).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+        }
+        return buf
+    }
+
+    private fun writeWav(file: java.io.File, samples: ShortArray) {
+        val rate = 44100
+        val dataSize = samples.size * 2
+        java.io.FileOutputStream(file).use { fos ->
+            val header = java.nio.ByteBuffer.allocate(44).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+            header.put("RIFF".toByteArray(Charsets.US_ASCII)); header.putInt(36 + dataSize); header.put("WAVE".toByteArray(Charsets.US_ASCII))
+            header.put("fmt ".toByteArray(Charsets.US_ASCII)); header.putInt(16)
+            header.putShort(1); header.putShort(1)
+            header.putInt(rate); header.putInt(rate * 2)
+            header.putShort(2); header.putShort(16)
+            header.put("data".toByteArray(Charsets.US_ASCII)); header.putInt(dataSize)
+            fos.write(header.array())
+            val body = java.nio.ByteBuffer.allocate(dataSize).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+            samples.forEach { body.putShort(it) }
+            fos.write(body.array())
+        }
     }
 
     fun onFishTap() {
@@ -87,23 +149,21 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     private fun playWoodSound(vol: Float) {
-        try {
-            val rate = 44100; val dur = 0.04; val f0 = 280.0
-            val n = (rate * dur).toInt(); val buf = ShortArray(n)
-            for (i in 0 until n) {
-                val t = i.toDouble() / rate
-                val env = exp(-t * 80.0)
-                var s = 0.0
-                for (h in 1..4) s += sin(2 * PI * f0 * h * t) * (1.0 / h) * env
-                buf[i] = (s * vol * Short.MAX_VALUE * 0.6).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+        val sp = soundPool
+        if (sp != null && soundLoaded && woodSoundId != 0) {
+            sp.play(woodSoundId, vol, vol, 1, 0, 1f)
+        } else {
+            // 兜底：SoundPool 未就绪时用一次性 AudioTrack
+            try {
+                val buf = synthesizeWoodPcm(vol)
+                val at = AudioTrack.Builder()
+                    .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+                    .setAudioFormat(AudioFormat.Builder().setSampleRate(44100).setEncoding(AudioFormat.ENCODING_PCM_16BIT).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
+                    .setBufferSizeInBytes(buf.size * 2).build()
+                at.write(buf, 0, buf.size); at.play(); at.release()
+            } catch (_: Exception) {
+                try { val t = ToneGenerator(AudioManager.STREAM_NOTIFICATION, (vol * 100).toInt()); t.startTone(ToneGenerator.TONE_PROP_NACK, 40); Thread.sleep(50); t.release() } catch (_: Exception) {}
             }
-            val at = AudioTrack.Builder()
-                .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
-                .setAudioFormat(AudioFormat.Builder().setSampleRate(rate).setEncoding(AudioFormat.ENCODING_PCM_16BIT).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
-                .setBufferSizeInBytes(n * 2).build()
-            at.write(buf, 0, n); at.play(); at.release()
-        } catch (_: Exception) {
-            try { val t = ToneGenerator(AudioManager.STREAM_NOTIFICATION, (vol * 100).toInt()); t.startTone(ToneGenerator.TONE_PROP_NACK, 40); Thread.sleep(50); t.release() } catch (_: Exception) {}
         }
     }
 
@@ -134,5 +194,5 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     fun dismissLegalPage() { _state.value = _state.value.copy(showLegalPage = null) }
     fun onVersionClick() { _state.value = _state.value.copy(aboutClickCount = _state.value.aboutClickCount + 1) }
     fun resetAboutClicks() { _state.value = _state.value.copy(aboutClickCount = 0) }
-    override fun onCleared() { super.onCleared(); celebrationJob?.cancel() }
+    override fun onCleared() { super.onCleared(); celebrationJob?.cancel(); try { soundPool?.release() } catch (_: Exception) {} }
 }
