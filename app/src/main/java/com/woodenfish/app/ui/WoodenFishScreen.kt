@@ -57,12 +57,18 @@ private fun isPackageInstalled(context: android.content.Context, pkg: String): B
 
 private fun openCalendarStore(context: android.content.Context) {
     val url = "https://play.google.com/store/apps/details?id=com.google.android.calendar"
-    // 优先用 Google Play 商店打开，没有 Play 商店则回退浏览器打开 Google Play 网页
+    // 1. 优先 Google Play 商店
     try {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage("com.android.vending"))
-    } catch (_: Exception) {
-        try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } catch (_: Exception) {}
-    }
+        return
+    } catch (_: Exception) {}
+    // 2. 没有 Play 商店则用系统自带商店（market:// 路由到默认应用商店）
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.google.android.calendar")))
+        return
+    } catch (_: Exception) {}
+    // 3. 最后回退浏览器打开 Google Play 网页
+    try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } catch (_: Exception) {}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
