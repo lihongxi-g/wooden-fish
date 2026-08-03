@@ -11,13 +11,26 @@ android {
         applicationId = "com.woodenfish.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "1.4"
+    }
+
+    signingConfigs {
+        create("doki") {
+            storeFile = file(System.getenv("DOKI_KEYSTORE") ?: "doki.keystore")
+            storePassword = System.getenv("DOKI_STORE_PASS") ?: "doki-password"
+            keyAlias = System.getenv("DOKI_KEY_ALIAS") ?: "doki"
+            keyPassword = System.getenv("DOKI_KEY_PASS") ?: "doki-password"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("doki")
+        }
         release {
             isMinifyEnabled = true
+            signingConfig = signingConfigs.getByName("doki")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

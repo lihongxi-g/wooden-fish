@@ -42,7 +42,6 @@ data class WoodenFishState(
     val soundVolume: Float = 0.7f, val vibrationIntensity: Float = 0.8f,
     val vibrationSupported: Boolean = true, val soundSupported: Boolean = true,
     val toastMessage: String? = null,
-    val customMode: Boolean = false, val customMediaPath: String? = null, val customAudioPath: String? = null,
 )
 
 class WoodenFishViewModel(application: Application) : AndroidViewModel(application) {
@@ -53,7 +52,6 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     val state: StateFlow<WoodenFishState> = _state.asStateFlow()
     private var particleCounter = 0
     private var celebrationJob: Job? = null
-    private var customPlayer: android.media.MediaPlayer? = null
 
     init {
         vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
@@ -68,9 +66,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
             showAgreement = !prefs.hasAgreedTerms(), themeColorIndex = prefs.getThemeColorIndex(),
             themeMode = prefs.getThemeMode(), language = prefs.getLanguage(),
             soundVolume = prefs.getSoundVolume(), vibrationIntensity = prefs.getVibrationIntensity(),
-            vibrationSupported = vibrator.hasVibrator(), soundSupported = true,
-            customMode = prefs.isCustomMode(), customMediaPath = prefs.getCustomMediaPath(),
-            customAudioPath = prefs.getCustomAudioPath())
+            vibrationSupported = vibrator.hasVibrator(), soundSupported = true)
     }
 
     fun onFishTap() {
@@ -78,11 +74,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
         val sv = _state.value.soundVolume; val vi = _state.value.vibrationIntensity
 
         vibrate((25 * vi).toLong().coerceAtLeast(1))
-
-        // Play sound: custom audio > wood synth
-        val audioPath = prefs.getCustomAudioPath()
-        if (prefs.isCustomMode() && audioPath != null) playCustomSound(audioPath, sv)
-        else playWoodSound(sv)
+        playWoodSound(sv)
 
         _state.value = _state.value.copy(hammerOffset = 1f)
         viewModelScope.launch { delay(150); _state.value = _state.value.copy(hammerOffset = 0f) }
@@ -92,16 +84,6 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
         _state.value = _state.value.copy(todayCount = newCount, totalCount = totalCount, particles = _state.value.particles + p)
         viewModelScope.launch { delay(1200); _state.value = _state.value.copy(particles = _state.value.particles.filter { it.id != p.id }) }
         if (newCount == 1000 && !prefs.hasCelebratedToday()) { prefs.markCelebrated(); triggerCelebration() }
-    }
-
-    private fun playCustomSound(path: String, vol: Float) {
-        try {
-            customPlayer?.release()
-            customPlayer = android.media.MediaPlayer().apply {
-                setDataSource(path); setVolume(vol, vol); prepare(); start()
-                setOnCompletionListener { it.release() }
-            }
-        } catch (_: Exception) { playWoodSound(vol) }
     }
 
     private fun playWoodSound(vol: Float) {
@@ -147,14 +129,10 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     fun setLanguage(l: String) { prefs.setLanguage(l); _state.value = _state.value.copy(language = l) }
     fun setSoundVolume(v: Float) { prefs.setSoundVolume(v); _state.value = _state.value.copy(soundVolume = v) }
     fun setVibrationIntensity(v: Float) { prefs.setVibrationIntensity(v); _state.value = _state.value.copy(vibrationIntensity = v) }
-    fun setCustomMedia(p: String?) { prefs.setCustomMediaPath(p); _state.value = _state.value.copy(customMediaPath = p) }
-    fun setCustomAudio(p: String?) { prefs.setCustomAudioPath(p); _state.value = _state.value.copy(customAudioPath = p) }
-    fun setCustomMode(v: Boolean) { prefs.setCustomMode(v); _state.value = _state.value.copy(customMode = v) }
-    fun testCustomAudio(vol: Float) { val p = prefs.getCustomAudioPath(); if (p != null) playCustomSound(p, vol) }
     fun agreeToTerms() { prefs.setAgreedTerms(); _state.value = _state.value.copy(showAgreement = false) }
     fun showLegalPage(p: String) { _state.value = _state.value.copy(showLegalPage = p) }
     fun dismissLegalPage() { _state.value = _state.value.copy(showLegalPage = null) }
     fun onVersionClick() { _state.value = _state.value.copy(aboutClickCount = _state.value.aboutClickCount + 1) }
     fun resetAboutClicks() { _state.value = _state.value.copy(aboutClickCount = 0) }
-    override fun onCleared() { super.onCleared(); celebrationJob?.cancel(); customPlayer?.release() }
+    override fun onCleared() { super.onCleared(); celebrationJob?.cancel() }
 }

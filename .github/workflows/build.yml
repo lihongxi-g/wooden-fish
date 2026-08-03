@@ -28,12 +28,25 @@ jobs:
           $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" 2>&1 | tail -5
           echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 
+      - name: Decode signing keystore
+        run: echo "${{ secrets.DOKI_KEYSTORE_B64 }}" | base64 -d > "${{ github.workspace }}/doki.keystore"
+
       - name: Build Debug APK
         env:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+          DOKI_KEYSTORE: ${{ github.workspace }}/doki.keystore
+          DOKI_STORE_PASS: ${{ secrets.DOKI_STORE_PASS }}
+          DOKI_KEY_ALIAS: ${{ secrets.DOKI_KEY_ALIAS }}
+          DOKI_KEY_PASS: ${{ secrets.DOKI_KEY_PASS }}
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
+
+      - name: Verify APK signature
+        if: success()
+        env:
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        run: $ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner verify --print-certs app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload APK
         if: success()

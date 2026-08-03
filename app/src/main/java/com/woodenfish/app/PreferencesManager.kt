@@ -59,12 +59,4 @@ class PreferencesManager(context: Context) {
     fun setSoundVolume(v: Float) = p.edit().putFloat("sound_vol", v).apply()
     fun getVibrationIntensity() = p.getFloat("vib_intensity", 0.8f)
     fun setVibrationIntensity(v: Float) = p.edit().putFloat("vib_intensity", v).apply()
-
-    // ─── Custom object ───
-    fun getCustomMediaPath() = p.getString("custom_media", null)
-    fun setCustomMediaPath(path: String?) = p.edit().putString("custom_media", path).apply()
-    fun getCustomAudioPath() = p.getString("custom_audio", null)
-    fun setCustomAudioPath(path: String?) = p.edit().putString("custom_audio", path).apply()
-    fun isCustomMode() = p.getBoolean("custom_mode", false)
-    fun setCustomMode(v: Boolean) = p.edit().putBoolean("custom_mode", v).apply()
 }

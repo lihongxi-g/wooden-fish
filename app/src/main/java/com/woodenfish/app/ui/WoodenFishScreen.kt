@@ -3,12 +3,7 @@ package com.woodenfish.app.ui
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import android.widget.VideoView
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -16,9 +11,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,7 +25,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -41,7 +32,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.woodenfish.app.PlusOneParticle
@@ -49,7 +39,6 @@ import com.woodenfish.app.WoodenFishState
 import com.woodenfish.app.WoodenFishViewModel
 import com.woodenfish.app.ui.theme.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private fun t(lang: String, zhCN: String, zhTW: String, en: String) = when (lang) { "zh-TW" -> zhTW; "en" -> en; else -> zhCN }
 
@@ -65,7 +54,7 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
     val lang = state.language
     val isDark = androidx.compose.foundation.isSystemInDarkTheme()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
-    var page by remember { mutableStateOf<String?>(null) } // null=home, notify/appearance/language/about/sound // Added by copilot
+    var page by remember { mutableStateOf<String?>(null) } // null=home, notify/appearance/language/about/sound
 
     LaunchedEffect(state.showMenu) { if (state.showMenu) drawerState.open() else drawerState.close() }
 
@@ -97,8 +86,6 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
             "appearance" -> { SubPage(t(lang, "界面主题", "界面主題", "Theme"), onBack = { page = null }) { AppearancePage(state, viewModel, lang, isDark) }; return@WoodenFishTheme }
             "language" -> { SubPage(t(lang, "语言", "語言", "Language"), onBack = { page = null }) { LanguagePage(state, viewModel, lang) }; return@WoodenFishTheme }
             "sound" -> { SubPage(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration"), onBack = { page = null }) { SoundVibrationPage(state, viewModel, lang) }; return@WoodenFishTheme }
-            "custom" -> { SubPage(t(lang, "自定义物体", "自訂物體", "Custom Object"), onBack = { page = null }) { CustomObjectPage(state, viewModel, lang, context, onNavigate = { page = it }) }; return@WoodenFishTheme }
-            "gifsearch" -> { SubPage(t(lang, "GIF搜索", "GIF搜尋", "GIF Search"), onBack = { page = null }) { GifSearchPage(viewModel, lang, context) }; return@WoodenFishTheme }
             "about" -> { SubPage(t(lang, "关于", "關於", "About"), onBack = { page = null; viewModel.resetAboutClicks() }) { AboutPage(viewModel, lang, context) }; return@WoodenFishTheme }
         }
 
@@ -116,12 +103,8 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
                         Spacer(Modifier.height(32.dp))
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(240.dp)) {
                             state.particles.forEach { PlusOneAnim(it) }
-                            if (state.customMode && state.customMediaPath != null) {
-                                CustomMediaView(path = state.customMediaPath!!, modifier = Modifier.size(200.dp))
-                            } else {
-                                Box(Modifier.size(200.dp).clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { viewModel.onFishTap() }, contentAlignment = Alignment.Center) {
-                                    FishCanvas(hammerOffset = state.hammerOffset, modifier = Modifier.size(190.dp))
-                                }
+                            Box(Modifier.size(200.dp).clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { viewModel.onFishTap() }, contentAlignment = Alignment.Center) {
+                                FishCanvas(hammerOffset = state.hammerOffset, modifier = Modifier.size(190.dp))
                             }
                         }
                     }
@@ -145,8 +128,19 @@ private fun SubPage(title: String, onBack: () -> Unit, content: @Composable () -
 @Composable
 private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
     val scale = remember { Animatable(1f) }
-    LaunchedEffect(hammerOffset) { if (hammerOffset > 0.5f) { scale.snapTo(0.93f); scale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh)) } }
-    Canvas(modifier = modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value }) {
+    val wobble = remember { Animatable(0f) }
+    val hammerAnim = remember { Animatable(0f) }
+    LaunchedEffect(hammerOffset) {
+        if (hammerOffset > 0.5f) {
+            scale.snapTo(0.9f)
+            wobble.snapTo(-4f)
+            hammerAnim.snapTo(1f)
+            launch { scale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh)) }
+            launch { wobble.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium)) }
+            launch { hammerAnim.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium)) }
+        }
+    }
+    Canvas(modifier = modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value; rotationZ = wobble.value }) {
         val w = size.width; val h = size.height; val cx = w / 2; val cy = h / 2
         drawOval(color = Color.Black.copy(alpha = 0.15f), topLeft = Offset(cx - w * 0.4f, cy - h * 0.18f + 4.dp.toPx()), size = Size(w * 0.8f, h * 0.46f))
         drawOval(brush = Brush.verticalGradient(listOf(Color(0xFFA1887F), Color(0xFF6D4C41), Color(0xFF4E342E)), startY = cy - h * 0.25f, endY = cy + h * 0.25f), topLeft = Offset(cx - w * 0.42f, cy - h * 0.25f), size = Size(w * 0.84f, h * 0.5f))
@@ -156,7 +150,7 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
         drawPath(slit, color = Color(0xFF3E2723)); drawPath(slit, color = Color.Black.copy(alpha = 0.3f), style = Stroke(1f))
         drawCircle(color = Color(0xFFEFEBE9), radius = w * 0.08f, center = Offset(cx, cy - h * 0.02f))
         drawCircle(color = Color(0xFFD7CCC8), radius = w * 0.045f, center = Offset(cx, cy - h * 0.02f))
-        val ha = hammerOffset * -30f; val px = cx + w * 0.38f; val py = cy - h * 0.35f
+        val ha = hammerAnim.value * -30f; val px = cx + w * 0.38f; val py = cy - h * 0.35f
         drawContext.canvas.save(); drawContext.canvas.translate(px, py); drawContext.canvas.rotate(ha); drawContext.canvas.translate(-px, -py)
         drawLine(color = Color(0xFF5D4037), start = Offset(px, py), end = Offset(px + w * 0.06f, py + h * 0.38f), strokeWidth = 5f)
         drawCircle(color = Color.Black.copy(alpha = 0.15f), radius = w * 0.095f, center = Offset(px + w * 0.06f + 2.dp.toPx(), py + h * 0.38f + 2.dp.toPx()))
@@ -166,10 +160,17 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
 }
 
 @Composable private fun PlusOneAnim(particle: PlusOneParticle) {
-    val color = PlusOneColors[particle.colorIndex % PlusOneColors.size]; val aY = remember { Animatable(0f) }; val aA = remember { Animatable(1f) }
+    val color = PlusOneColors[particle.colorIndex % PlusOneColors.size]
+    val aY = remember { Animatable(0f) }; val aA = remember { Animatable(0f) }; val aS = remember { Animatable(0.4f) }
     val oX = when (particle.positionIndex) { 0 -> -60f; 2 -> 60f; else -> 0f }
-    LaunchedEffect(particle.id) { launch { aY.animateTo(-180f, tween(900, easing = FastOutSlowInEasing)) }; launch { kotlinx.coroutines.delay(500); aA.animateTo(0f, tween(400)) } }
-    Box(Modifier.offset(x = oX.dp, y = aY.value.dp).graphicsLayer { alpha = aA.value }) { Text("+1", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = color) }
+    LaunchedEffect(particle.id) {
+        launch { aY.animateTo(-180f, tween(950, easing = FastOutSlowInEasing)) }
+        launch { aA.animateTo(1f, tween(100)) }
+        launch { aS.animateTo(1.15f, tween(160, easing = FastOutSlowInEasing)); aS.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh)) }
+        kotlinx.coroutines.delay(650)
+        launch { aA.animateTo(0f, tween(350)) }
+    }
+    Box(Modifier.offset(x = oX.dp, y = aY.value.dp).graphicsLayer { alpha = aA.value; scaleX = aS.value; scaleY = aS.value }) { Text("+1", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = color) }
 }
 
 @Composable private fun CounterDisplay(todayCount: Int, totalCount: Long, lang: String) {
@@ -190,7 +191,6 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
         Item(t(lang, "界面主题", "界面主題", "Theme")) { viewModel.closeMenu(); onPage("appearance") }
         Item(t(lang, "语言", "語言", "Language")) { viewModel.closeMenu(); onPage("language") }
         Item(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration")) { viewModel.closeMenu(); onPage("sound") }
-        Item(t(lang, "自定义物体", "自訂物體", "Custom Object")) { viewModel.closeMenu(); onPage("custom") }
         Item(t(lang, "用户协议", "用戶協議", "User Agreement")) { viewModel.closeMenu(); viewModel.showLegalPage("agreement") }
         Item(t(lang, "隐私政策", "隱私政策", "Privacy")) { viewModel.closeMenu(); viewModel.showLegalPage("privacy") }
         Item(t(lang, "关于", "關於", "About")) { viewModel.closeMenu(); onPage("about") }
@@ -308,193 +308,6 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable private fun ThemeChip(label: String, mode: ThemeMode, current: ThemeMode, onSelect: (ThemeMode) -> Unit) { FilterChip(selected = current == mode, onClick = { onSelect(mode) }, label = { Text(label, fontSize = 13.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer)) }
 
-// ═══════════════ CUSTOM OBJECT ═══════════════
-@Composable
-private fun CustomObjectPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, context: android.content.Context, onNavigate: (String) -> Unit) {
-    val mediaLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let {
-            val path = copyUriToCache(context, it)
-            viewModel.setCustomMedia(path)
-            viewModel.toast(t(lang, "媒体已导入", "媒體已匯入", "Media imported"))
-        }
-    }
-    val audioLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let {
-            val path = copyUriToCache(context, it)
-            viewModel.setCustomAudio(path)
-            viewModel.toast(t(lang, "音效已导入", "音效已匯入", "Audio imported"))
-        }
-    }
-
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // Enable toggle
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(t(lang, "启用自定义物体", "啟用自訂物體", "Enable Custom Object"), style = MaterialTheme.typography.bodyLarge)
-            Switch(checked = state.customMode, onCheckedChange = { viewModel.setCustomMode(it); viewModel.toast(if (it) t(lang, "已启用", "已啟用", "Enabled") else t(lang, "已停用", "已停用", "Disabled")) }, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primaryContainer))
-        }
-
-        if (state.customMode) {
-            Divider()
-            Text(t(lang, "选择视频或动图（MP4/GIF）", "選擇影片或動圖（MP4/GIF）", "Select video or GIF (MP4/GIF)"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(t(lang, "画质和音质不会被压缩", "畫質和音質不會被壓縮", "Quality is not compressed"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-            Button(onClick = { mediaLauncher.launch("video/*") }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) {
-                Text(if (state.customMediaPath != null) t(lang, "已选择媒体 \u2713", "已選擇媒體 \u2713", "Media selected \u2713") else t(lang, "选择媒体文件", "選擇媒體檔案", "Select Media File"))
-            }
-
-            // Online GIF search
-            OutlinedButton(onClick = { onNavigate("gifsearch") }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
-                Text(t(lang, "在线搜索GIF动图", "在線搜尋GIF動圖", "Search GIFs Online"))
-            }
-
-            // Preview
-            if (state.customMediaPath != null) {
-                Card(Modifier.fillMaxWidth().height(200.dp), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.Black)) {
-                    AndroidView(factory = { ctx ->
-                        VideoView(ctx).apply {
-                            setVideoPath(state.customMediaPath)
-                            setOnPreparedListener { it.isLooping = true; it.setVolume(0f, 0f); start() }
-                        }
-                    }, modifier = Modifier.fillMaxSize())
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-            Text(t(lang, "选择音效（MP3）", "選擇音效（MP3）", "Select sound (MP3)"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-
-            Button(onClick = { audioLauncher.launch("audio/*") }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) {
-                Text(if (state.customAudioPath != null) t(lang, "已选择音效 \u2713", "已選擇音效 \u2713", "Audio selected \u2713") else t(lang, "选择音效文件", "選擇音效檔案", "Select Audio File"))
-            }
-
-            // Test play
-            if (state.customAudioPath != null) {
-                OutlinedButton(onClick = { viewModel.testCustomAudio(state.soundVolume) }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
-                    Text(t(lang, "试听音效", "試聽音效", "Test Sound"))
-                }
-            }
-
-            // Clear
-            if (state.customMediaPath != null || state.customAudioPath != null) {
-                Spacer(Modifier.height(8.dp))
-                TextButton(onClick = { viewModel.setCustomMedia(null); viewModel.setCustomAudio(null); viewModel.toast(t(lang, "已清除", "已清除", "Cleared")) }) {
-                    Text(t(lang, "清除所有自定义", "清除所有自訂", "Clear All Custom"), color = MaterialTheme.colorScheme.error)
-                }
-            }
-        }
-    }
-}
-
-private fun copyUriToCache(context: android.content.Context, uri: Uri): String {
-    val name = "custom_${System.currentTimeMillis()}"
-    val file = java.io.File(context.cacheDir, name)
-    context.contentResolver.openInputStream(uri)?.use { it.copyTo(java.io.FileOutputStream(file)) }
-    return file.absolutePath
-}
-
-// ═══════════════ CUSTOM MEDIA VIEW ═══════════════
-@Composable
-private fun CustomMediaView(path: String, modifier: Modifier) {
-    val ext = path.substringAfterLast('.', "").lowercase()
-    if (ext == "mp4") {
-        AndroidView(factory = { ctx ->
-            android.widget.VideoView(ctx).apply {
-                setVideoPath(path); setOnPreparedListener { it.isLooping = true; it.setVolume(0f, 0f); start() }
-            }
-        }, modifier = modifier.clip(RoundedCornerShape(16.dp)))
-    } else {
-        // GIF / WebP / static images
-        AndroidView(factory = { ctx ->
-            WebView(ctx).apply {
-                webViewClient = WebViewClient()
-                settings.apply { allowFileAccess = true; javaScriptEnabled = false }
-                loadUrl("file://$path")
-            }
-        }, modifier = modifier.clip(RoundedCornerShape(16.dp)))
-    }
-}
-
-// ═══════════════ GIF SEARCH PAGE ═══════════════
-@Composable
-private fun GifSearchPage(viewModel: WoodenFishViewModel, lang: String, context: android.content.Context) {
-    var query by remember { mutableStateOf("") }
-    var gifs by remember { mutableStateOf<List<String>>(emptyList()) }
-    var loading by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-
-    fun search(q: String) {
-        if (q.isBlank()) return
-        loading = true
-        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            try {
-                val url = java.net.URL("https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${java.net.URLEncoder.encode(q, "UTF-8")}&limit=20")
-                val json = url.readText()
-                val arr = org.json.JSONObject(json).getJSONArray("data")
-                val urls = mutableListOf<String>()
-                for (i in 0 until arr.length()) {
-                    urls.add(arr.getJSONObject(i).getJSONObject("images").getJSONObject("fixed_height_downsampled").getString("url"))
-                }
-                withContext(kotlinx.coroutines.Dispatchers.Main) { gifs = urls; loading = false }
-            } catch (_: Exception) { withContext(kotlinx.coroutines.Dispatchers.Main) { loading = false } }
-        }
-    }
-
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.weight(1f), singleLine = true, placeholder = { Text(t(lang, "搜索GIF...", "搜尋GIF...", "Search GIFs...")) }, shape = RoundedCornerShape(8.dp))
-            Button(onClick = { search(query) }) { Text(t(lang, "搜索", "搜尋", "Search")) }
-        }
-
-        if (loading) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
-        else {
-            LazyVerticalGrid(columns = GridCells.Fixed(2), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(gifs.size) { idx ->
-                    val gifUrl = gifs[idx]
-                    // Get full-size URL
-                    val fullUrl = gifUrl.replace("fixed_height_downsampled", "fixed_height")
-                    Box(Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).clickable {
-                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                            try {
-                                val bytes = java.net.URL(fullUrl).readBytes()
-                                val f = java.io.File(context.cacheDir, "gif_${System.currentTimeMillis()}.gif")
-                                f.writeBytes(bytes)
-                                withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                    viewModel.setCustomMedia(f.absolutePath)
-                                    viewModel.toast(t(lang, "已导入", "已匯入", "Imported"))
-                                }
-                            } catch (_: Exception) {
-                                withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                    viewModel.toast(t(lang, "导入失败", "匯入失敗", "Import failed"))
-                                }
-                            }
-                        }
-                    }) {
-                        AsyncImage(gifUrl, Modifier.fillMaxSize())
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AsyncImage(url: String, modifier: Modifier) {
-    var bitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-    LaunchedEffect(url) {
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            try {
-                val gifBytes = java.net.URL(url).readBytes()
-                val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                android.graphics.BitmapFactory.decodeByteArray(gifBytes, 0, gifBytes.size, opts)
-                opts.inJustDecodeBounds = false; opts.inSampleSize = 2
-                bitmap = android.graphics.BitmapFactory.decodeByteArray(gifBytes, 0, gifBytes.size, opts)
-            } catch (_: Exception) {}
-        }
-    }
-    bitmap?.let {
-        androidx.compose.foundation.Image(bitmap = it.asImageBitmap(), contentDescription = null, modifier = modifier)
-    } ?: Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant))
-}
-
 // ═══════════════ ABOUT ═══════════════
 @Composable private fun AboutPage(viewModel: WoodenFishViewModel, lang: String, context: android.content.Context) {
     val cc = viewModel.state.collectAsState().value.aboutClickCount
@@ -504,7 +317,7 @@ private fun AsyncImage(url: String, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 1.3", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 1.4", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
