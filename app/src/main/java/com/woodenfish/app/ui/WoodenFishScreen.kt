@@ -129,7 +129,7 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(240.dp)) {
                             state.particles.forEach { PlusOneAnim(it, state.tapSpeed) }
                             Box(Modifier.size(200.dp).clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { viewModel.onFishTap() }, contentAlignment = Alignment.Center) {
-                                FishCanvas(hammerOffset = state.hammerOffset, speed = state.tapSpeed, modifier = Modifier.size(190.dp))
+                                FishCanvas(tapTick = state.tapTick, speed = state.tapSpeed, modifier = Modifier.size(190.dp))
                             }
                         }
                     }
@@ -151,21 +151,21 @@ private fun SubPage(title: String, onBack: () -> Unit, content: @Composable () -
 
 // ═══════════════ FISH ═══════════════
 @Composable
-private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
-    val scale = remember { Animatable(1f) }
-    val wobble = remember { Animatable(0f) }
-    val hammerAnim = remember { Animatable(0f) }
-    LaunchedEffect(hammerOffset) {
-        if (hammerOffset > 0.5f) {
-            scale.snapTo(0.9f)
-            wobble.snapTo(-4f)
-            hammerAnim.snapTo(1f)
-            launch { scale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh * speed)) }
-            launch { wobble.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium * speed)) }
-            launch { hammerAnim.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium * speed)) }
+private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
+    // 单个动画驱动压扁/摇摆/锤子三个效果，快速连敲时开销只有原来的 1/3
+    val tapAnim = remember { Animatable(1f) }
+    LaunchedEffect(tapTick) {
+        if (tapTick > 0) {
+            tapAnim.snapTo(0f)
+            tapAnim.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh * speed))
         }
     }
-    Canvas(modifier = modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value; rotationZ = wobble.value }) {
+    Canvas(modifier = modifier.graphicsLayer {
+        val p = tapAnim.value
+        val s = 1f - 0.1f * (1f - p)
+        scaleX = s; scaleY = s
+        rotationZ = -4f * (1f - p)
+    }) {
         val w = size.width; val h = size.height; val cx = w / 2; val cy = h / 2
         drawOval(color = Color.Black.copy(alpha = 0.15f), topLeft = Offset(cx - w * 0.4f, cy - h * 0.18f + 4.dp.toPx()), size = Size(w * 0.8f, h * 0.46f))
         drawOval(brush = Brush.verticalGradient(listOf(Color(0xFFA1887F), Color(0xFF6D4C41), Color(0xFF4E342E)), startY = cy - h * 0.25f, endY = cy + h * 0.25f), topLeft = Offset(cx - w * 0.42f, cy - h * 0.25f), size = Size(w * 0.84f, h * 0.5f))
@@ -175,7 +175,7 @@ private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
         drawPath(slit, color = Color(0xFF3E2723)); drawPath(slit, color = Color.Black.copy(alpha = 0.3f), style = Stroke(1f))
         drawCircle(color = Color(0xFFEFEBE9), radius = w * 0.08f, center = Offset(cx, cy - h * 0.02f))
         drawCircle(color = Color(0xFFD7CCC8), radius = w * 0.045f, center = Offset(cx, cy - h * 0.02f))
-        val ha = hammerAnim.value * -30f; val px = cx + w * 0.38f; val py = cy - h * 0.35f
+        val ha = (1f - tapAnim.value) * -30f; val px = cx + w * 0.38f; val py = cy - h * 0.35f
         drawContext.canvas.save(); drawContext.canvas.translate(px, py); drawContext.canvas.rotate(ha); drawContext.canvas.translate(-px, -py)
         drawLine(color = Color(0xFF5D4037), start = Offset(px, py), end = Offset(px + w * 0.06f, py + h * 0.38f), strokeWidth = 5f)
         drawCircle(color = Color.Black.copy(alpha = 0.15f), radius = w * 0.095f, center = Offset(px + w * 0.06f + 2.dp.toPx(), py + h * 0.38f + 2.dp.toPx()))
@@ -504,7 +504,7 @@ private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 2.0.2", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 2.0.3", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)

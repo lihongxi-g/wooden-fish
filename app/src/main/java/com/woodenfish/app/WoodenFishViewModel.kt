@@ -37,7 +37,7 @@ data class WoodenFishState(
     val randomTime: Boolean = true, val notifyStartMin: Int = 480, val notifyEndMin: Int = 1260,
     val fixedTimeEnabled: Boolean = false, val fixedTimeMin: Int = 540,
     val showAgreement: Boolean = false, val showLegalPage: String? = null,
-    val showMenu: Boolean = false, val hammerOffset: Float = 0f,
+    val showMenu: Boolean = false, val tapTick: Int = 0,
     val aboutClickCount: Int = 0,
     val themeColorIndex: Int = THEME_BROWN,
     val themeMode: com.woodenfish.app.ui.theme.ThemeMode = com.woodenfish.app.ui.theme.ThemeMode.SYSTEM,
@@ -56,6 +56,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     val state: StateFlow<WoodenFishState> = _state.asStateFlow()
     private var particleCounter = 0
     private var celebrationJob: Job? = null
+    private var lastVibrateTime = 0L
 
     // 常驻 SoundPool：音效预加载，敲击即时播放（低延迟、快速连敲可叠加）
     private var soundPool: SoundPool? = null
@@ -137,21 +138,20 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun onFishTap() {
-        val newCount = prefs.incrementCount(); prefs.incrementTotal(); val totalCount = prefs.getTotalCount()
+        val newCount = prefs.incrementCountAndTotal(); val totalCount = prefs.getTotalCount()
         val sv = _state.value.soundVolume; val vi = _state.value.vibrationIntensity
 
         vibrate((25 * vi).toLong().coerceAtLeast(1))
         playWoodSound(sv)
 
         val spd = _state.value.tapSpeed
-        _state.value = _state.value.copy(hammerOffset = 1f)
-        viewModelScope.launch { delay((150 / spd).toLong()); _state.value = _state.value.copy(hammerOffset = 0f) }
-
         val ci = Random.nextInt(com.woodenfish.app.ui.theme.PlusOneColors.size)
         val angle = Random.nextDouble(0.0, 2 * PI)
         val radius = Random.nextDouble(105.0, 118.0)
         val p = PlusOneParticle(particleCounter++, ci, (cos(angle) * radius).toFloat(), (sin(angle) * radius).toFloat())
-        _state.value = _state.value.copy(todayCount = newCount, totalCount = totalCount, particles = _state.value.particles + p)
+        // 单次状态更新；粒子数上限 8 个，快速连敲时丢弃最旧的
+        val newParticles = (_state.value.particles + p).takeLast(8)
+        _state.value = _state.value.copy(todayCount = newCount, totalCount = totalCount, particles = newParticles, tapTick = _state.value.tapTick + 1)
         viewModelScope.launch { delay((1200 / spd).toLong()); _state.value = _state.value.copy(particles = _state.value.particles.filter { it.id != p.id }) }
         if (newCount == 1000 && !prefs.hasCelebratedToday()) { prefs.markCelebrated(); triggerCelebration() }
     }
@@ -182,7 +182,13 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
         celebrationJob = viewModelScope.launch { delay(4000); _state.value = _state.value.copy(showCelebration = false) }
     }
 
-    private fun vibrate(ms: Long) { if (vibrator.hasVibrator()) vibrator.vibrate(VibrationEffect.createOneShot(ms, (255 * _state.value.vibrationIntensity).toInt().coerceIn(1, 255))) }
+    private fun vibrate(ms: Long) {
+        // 60ms 节流：快速连敲时跳过部分振动调用（人感知不出差别，减少系统调用开销）
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastVibrateTime < 60) return
+        lastVibrateTime = now
+        if (vibrator.hasVibrator()) vibrator.vibrate(VibrationEffect.createOneShot(ms, (255 * _state.value.vibrationIntensity).toInt().coerceIn(1, 255)))
+    }
 
     fun toast(msg: String) { _state.value = _state.value.copy(toastMessage = msg) }
     fun clearToast() { _state.value = _state.value.copy(toastMessage = null) }

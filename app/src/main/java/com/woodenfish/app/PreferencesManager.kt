@@ -12,13 +12,17 @@ class PreferencesManager(context: Context) {
 
     // ─── Count (keys unchanged for backward compat) ───
     fun getCount(): Int { val d = p.getString("last_date", ""); return if (d == t()) p.getInt("count", 0) else 0 }
-    fun incrementCount(): Int {
+    fun incrementCountAndTotal(): Int {
         val td = t()
-        if (p.getString("last_date", "") != td) { p.edit().putString("last_date", td).putInt("count", 1).putBoolean("celebrated_today", false).apply(); return 1 }
-        val c = p.getInt("count", 0) + 1; p.edit().putInt("count", c).apply(); return c
+        if (p.getString("last_date", "") != td) {
+            p.edit().putString("last_date", td).putInt("count", 1).putBoolean("celebrated_today", false).putLong("total_count", getTotalCount() + 1).apply()
+            return 1
+        }
+        val c = p.getInt("count", 0) + 1
+        p.edit().putInt("count", c).putLong("total_count", getTotalCount() + 1).apply()
+        return c
     }
     fun getTotalCount() = p.getLong("total_count", 0L)
-    fun incrementTotal() = p.edit().putLong("total_count", getTotalCount() + 1).apply()
     fun hasCelebratedToday() = p.getString("last_date", "") == t() && p.getBoolean("celebrated_today", false)
     fun markCelebrated() = p.edit().putBoolean("celebrated_today", true).apply()
 
