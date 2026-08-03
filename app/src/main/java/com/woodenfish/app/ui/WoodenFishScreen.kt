@@ -464,10 +464,28 @@ private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 1.9", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 2.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+        OutlinedButton(onClick = {
+            com.woodenfish.app.Updater.checkForUpdate(context) { info ->
+                (context as? android.app.Activity)?.runOnUiThread {
+                    if (info == null) {
+                        Toast.makeText(context, t(lang, "已是最新版本", "已是最新版本", "Up to date"), Toast.LENGTH_SHORT).show()
+                    } else {
+                        android.app.AlertDialog.Builder(context)
+                            .setTitle("发现新版本 v${info.version}")
+                            .setMessage(t(lang, "是否下载更新？", "是否下載更新？", "Download update?"))
+                            .setPositiveButton(t(lang, "更新", "更新", "Update")) { _, _ -> viewModel.downloadAndInstall(context, info.apkUrl) }
+                            .setNegativeButton(t(lang, "稍后", "稍後", "Later"), null)
+                            .show()
+                    }
+                }
+            }
+        }, shape = RoundedCornerShape(8.dp)) {
+            Text(t(lang, "检查更新", "檢查更新", "Check for updates"))
+        }
         Spacer(Modifier.height(24.dp))
         Text(t(lang, "一款简洁的电子木鱼应用。\n敲击木鱼，积累功德，平和心境。", "一款簡潔的電子木魚應用。\n敲擊木魚，積累功德，平和心境。", "A simple digital wooden fish app.\nTap to accumulate merit, find peace of mind."), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
     }

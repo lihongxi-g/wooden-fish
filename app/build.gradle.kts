@@ -11,8 +11,8 @@ android {
         applicationId = "com.woodenfish.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 13
-        versionName = "1.9"
+        versionCode = 14
+        versionName = "2.0"
     }
 
     signingConfigs {
