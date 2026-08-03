@@ -26,7 +26,7 @@ fun UserAgreementScreen(onBack: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "更新日期：2024年1月1日\n生效日期：2024年1月1日",
+            text = "更新日期：2026年8月2日\n生效日期：2026年8月2日",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -74,7 +74,7 @@ fun PrivacyPolicyScreen(onBack: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "更新日期：2024年1月1日\n生效日期：2024年1月1日",
+            text = "更新日期：2026年8月2日\n生效日期：2026年8月2日",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

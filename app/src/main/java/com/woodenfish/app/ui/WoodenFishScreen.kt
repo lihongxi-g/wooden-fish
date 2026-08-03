@@ -2,6 +2,8 @@ package com.woodenfish.app.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -18,13 +20,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -40,12 +40,7 @@ import com.woodenfish.app.WoodenFishViewModel
 import com.woodenfish.app.ui.theme.*
 import kotlinx.coroutines.launch
 
-// ─── L10n helper ───
-private fun t(lang: String, zhCN: String, zhTW: String, en: String) = when (lang) {
-    "zh-TW" -> zhTW
-    "en" -> en
-    else -> zhCN
-}
+private fun t(lang: String, zhCN: String, zhTW: String, en: String) = when (lang) { "zh-TW" -> zhTW; "en" -> en; else -> zhCN }
 
 private val hourPresets = listOf(1, 2, 3, 6, 12)
 private val minPresets = listOf(15, 30, 45, 60, 120)
@@ -59,284 +54,194 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
     val lang = state.language
     val isDark = androidx.compose.foundation.isSystemInDarkTheme()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
-    var settingsPage by remember { mutableStateOf<String?>(null) }
-    var showAbout by remember { mutableStateOf(false) }
+    var page by remember { mutableStateOf<String?>(null) } // null=home, notify/appearance/language/about/sound // Added by copilot
 
-    // Sync drawer state with showMenu
-    LaunchedEffect(state.showMenu) {
-        if (state.showMenu) drawerState.open() else drawerState.close()
+    LaunchedEffect(state.showMenu) { if (state.showMenu) drawerState.open() else drawerState.close() }
+
+    // Toast
+    LaunchedEffect(state.toastMessage) {
+        state.toastMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            viewModel.clearToast()
+        }
     }
 
-    WoodenFishTheme(themeMode = state.themeMode, darkTheme = isDark) {
-        // ── Legal pages ──
-        when (state.showLegalPage) {
-            "agreement" -> {
-                Scaffold(topBar = { TopAppBar(title = { Text(t(lang, "用户协议", "用戶協議", "User Agreement")) }, navigationIcon = { TextButton(onClick = { viewModel.dismissLegalPage() }) { Text(t(lang, "返回","返回","Back"), color = MaterialTheme.colorScheme.primary) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) }) { p -> Box(Modifier.padding(p)) { UserAgreementScreen {} } }
-                return@WoodenFishTheme
-            }
-            "privacy" -> {
-                Scaffold(topBar = { TopAppBar(title = { Text(t(lang, "隐私政策", "隱私政策", "Privacy Policy")) }, navigationIcon = { TextButton(onClick = { viewModel.dismissLegalPage() }) { Text(t(lang, "返回","返回","Back"), color = MaterialTheme.colorScheme.primary) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) }) { p -> Box(Modifier.padding(p)) { PrivacyPolicyScreen {} } }
-                return@WoodenFishTheme
-            }
-        }
+    // BackHandler for sub-pages
+    BackHandler(enabled = page != null) { page = null }
 
-        when (settingsPage) {
-            "notify" -> {
-                Scaffold(topBar = { TopAppBar(title = { Text(t(lang, "提醒设置", "提醒設定", "Notifications")) }, navigationIcon = { TextButton(onClick = { settingsPage = null }) { Text(t(lang, "返回","返回","Back"), color = MaterialTheme.colorScheme.primary) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) }) { p -> Box(Modifier.padding(p)) { NotifySettingsPage(state, viewModel, lang) } }
-                return@WoodenFishTheme
-            }
-            "appearance" -> {
-                Scaffold(topBar = { TopAppBar(title = { Text(t(lang, "界面与语言", "界面與語言", "Appearance")) }, navigationIcon = { TextButton(onClick = { settingsPage = null }) { Text(t(lang, "返回","返回","Back"), color = MaterialTheme.colorScheme.primary) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) }) { p -> Box(Modifier.padding(p)) { AppearanceSettingsPage(state, viewModel, lang) } }
-                return@WoodenFishTheme
-            }
+    WoodenFishTheme(themeMode = state.themeMode, themeColorIndex = state.themeColorIndex, darkTheme = isDark) {
+        // Legal pages
+        if (state.showLegalPage == "agreement") {
+            Scaffold(topBar = { TopAppBar(title = { Text(t(lang, "用户协议", "用戶協議", "User Agreement")) }, navigationIcon = { TextButton(onClick = { viewModel.dismissLegalPage() }) { Text(t(lang, "返回","返回","Back"), color = MaterialTheme.colorScheme.primary) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) }) { p -> Box(Modifier.padding(p)) { UserAgreementScreen {} } }
+            return@WoodenFishTheme
         }
-
-        if (showAbout) {
-            Scaffold(topBar = { TopAppBar(title = { Text(t(lang, "关于", "關於", "About")) }, navigationIcon = { TextButton(onClick = { showAbout = false; viewModel.resetAboutClicks() }) { Text(t(lang, "返回","返回","Back"), color = MaterialTheme.colorScheme.primary) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) }) { p -> Box(Modifier.padding(p)) { AboutPage(viewModel, lang, context) } }
+        if (state.showLegalPage == "privacy") {
+            Scaffold(topBar = { TopAppBar(title = { Text(t(lang, "隐私政策", "隱私政策", "Privacy Policy")) }, navigationIcon = { TextButton(onClick = { viewModel.dismissLegalPage() }) { Text(t(lang, "返回","返回","Back"), color = MaterialTheme.colorScheme.primary) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) }) { p -> Box(Modifier.padding(p)) { PrivacyPolicyScreen {} } }
             return@WoodenFishTheme
         }
 
-        // ── Main content ──
+        // Sub-pages
+        when (page) {
+            "notify" -> { SubPage(t(lang, "提醒设置", "提醒設定", "Notifications"), onBack = { page = null }) { NotifySettingsPage(state, viewModel, lang) }; return@WoodenFishTheme }
+            "appearance" -> { SubPage(t(lang, "界面主题", "界面主題", "Theme"), onBack = { page = null }) { AppearancePage(state, viewModel, lang, isDark) }; return@WoodenFishTheme }
+            "language" -> { SubPage(t(lang, "语言", "語言", "Language"), onBack = { page = null }) { LanguagePage(state, viewModel, lang) }; return@WoodenFishTheme }
+            "sound" -> { SubPage(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration"), onBack = { page = null }) { SoundVibrationPage(state, viewModel, lang) }; return@WoodenFishTheme }
+            "about" -> { SubPage(t(lang, "关于", "關於", "About"), onBack = { page = null; viewModel.resetAboutClicks() }) { AboutPage(viewModel, lang, context) }; return@WoodenFishTheme }
+        }
+
+        // Main
         ModalNavigationDrawer(
-            drawerState = drawerState,
-            gesturesEnabled = true,
-            drawerContent = {
-                ModalDrawerSheet(modifier = Modifier.width(280.dp)) {
-                    DrawerContent(state, viewModel, lang, onSettings = { settingsPage = it }, onAbout = { showAbout = true })
-                }
-            },
+            drawerState = drawerState, gesturesEnabled = true,
+            drawerContent = { ModalDrawerSheet(Modifier.width(280.dp)) { DrawerContent(state, viewModel, lang, onPage = { page = it }) } },
             content = {
                 Scaffold(
-                    topBar = {
-                        TopAppBar(
-                            title = { Text("Doki", fontWeight = FontWeight.Medium) },
-                            navigationIcon = {
-                                TextButton(onClick = { viewModel.toggleMenu() }) {
-                                    Text("☰", fontSize = 22.sp, color = MaterialTheme.colorScheme.onSurface)
-                                }
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
-                        )
-                    },
+                    topBar = { TopAppBar(title = { Text("Doki", fontWeight = FontWeight.Medium) }, navigationIcon = { TextButton(onClick = { viewModel.toggleMenu() }) { Text("\u2630", fontSize = 22.sp, color = MaterialTheme.colorScheme.onSurface) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) },
                     containerColor = MaterialTheme.colorScheme.background,
-                ) { padding ->
-                    Box(Modifier.fillMaxSize().padding(padding)) {
-                        Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            CounterDisplay(state.todayCount, state.totalCount, lang)
-                            Spacer(Modifier.height(32.dp))
-                            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(240.dp)) {
-                                state.particles.forEach { PlusOneAnim(it) }
-                                val interactionSource = remember { MutableInteractionSource() }
-                                Box(
-                                    modifier = Modifier.size(200.dp).clickable(indication = null, interactionSource = interactionSource) { viewModel.onFishTap() },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    FishCanvas(hammerOffset = state.hammerOffset, modifier = Modifier.size(190.dp))
-                                }
+                ) { pd -> Box(Modifier.fillMaxSize().padding(pd)) {
+                    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                        CounterDisplay(state.todayCount, state.totalCount, lang)
+                        Spacer(Modifier.height(32.dp))
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(240.dp)) {
+                            state.particles.forEach { PlusOneAnim(it) }
+                            Box(Modifier.size(200.dp).clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { viewModel.onFishTap() }, contentAlignment = Alignment.Center) {
+                                FishCanvas(hammerOffset = state.hammerOffset, modifier = Modifier.size(190.dp))
                             }
                         }
-                        AnimatedVisibility(visible = state.showCelebration, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.Center)) {
-                            Text(t(lang, "🎉 功德圆满 🎉\n今日已敲 1000 次！", "🎉 功德圓滿 🎉\n今日已敲 1000 次！", "🎉 1000 Taps!\nMerit complete!"), style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontSize = 26.sp), color = MaterialTheme.colorScheme.tertiary, textAlign = TextAlign.Center)
-                        }
                     }
-                }
+                    AnimatedVisibility(visible = state.showCelebration, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.Center)) {
+                        Text(t(lang, "\uD83C\uDF89 功德圆满 \uD83C\uDF89\n今日已敲 1000 次！", "\uD83C\uDF89 功德圓滿 \uD83C\uDF89\n今日已敲 1000 次！", "\uD83C\uDF89 1000 Taps!\nMerit complete!"), style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontSize = 26.sp), color = MaterialTheme.colorScheme.tertiary, textAlign = TextAlign.Center)
+                    }
+                } }
             }
         )
-
-        if (state.showAgreement) {
-            AgreementDialog(onAgree = { viewModel.agreeToTerms() }, onViewAgreement = { viewModel.showLegalPage("agreement") }, onViewPrivacy = { viewModel.showLegalPage("privacy") }, lang)
-        }
+        if (state.showAgreement) AgreementDialog(onAgree = { viewModel.agreeToTerms() }, onViewAgreement = { viewModel.showLegalPage("agreement") }, onViewPrivacy = { viewModel.showLegalPage("privacy") }, lang)
     }
 }
 
-// ═══════════════════ 3D WOODEN FISH ═══════════════════
+@Composable
+private fun SubPage(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
+    Scaffold(topBar = { TopAppBar(title = { Text(title) }, navigationIcon = { TextButton(onClick = onBack) { Text("\u2190", fontSize = 18.sp, color = MaterialTheme.colorScheme.primary) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) }) { p -> Box(Modifier.padding(p)) { content() } }
+}
+
+// ═══════════════ FISH ═══════════════
 @Composable
 private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
     val scale = remember { Animatable(1f) }
-    LaunchedEffect(hammerOffset) {
-        if (hammerOffset > 0.5f) { scale.snapTo(0.93f); scale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh)) }
-    }
-
+    LaunchedEffect(hammerOffset) { if (hammerOffset > 0.5f) { scale.snapTo(0.93f); scale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh)) } }
     Canvas(modifier = modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value }) {
         val w = size.width; val h = size.height; val cx = w / 2; val cy = h / 2
-
-        // ── Shadow drop ──
         drawOval(color = Color.Black.copy(alpha = 0.15f), topLeft = Offset(cx - w * 0.4f, cy - h * 0.18f + 4.dp.toPx()), size = Size(w * 0.8f, h * 0.46f))
-
-        // ── Fish body — 3D gradient ──
-        val bodyGrad = Brush.verticalGradient(listOf(Color(0xFFA1887F), Color(0xFF6D4C41), Color(0xFF4E342E)), startY = cy - h * 0.25f, endY = cy + h * 0.25f)
-        drawOval(brush = bodyGrad, topLeft = Offset(cx - w * 0.42f, cy - h * 0.25f), size = Size(w * 0.84f, h * 0.5f))
-
-        // ── Rim highlight ──
+        drawOval(brush = Brush.verticalGradient(listOf(Color(0xFFA1887F), Color(0xFF6D4C41), Color(0xFF4E342E)), startY = cy - h * 0.25f, endY = cy + h * 0.25f), topLeft = Offset(cx - w * 0.42f, cy - h * 0.25f), size = Size(w * 0.84f, h * 0.5f))
         drawOval(color = Color(0xFFBCAAA4), topLeft = Offset(cx - w * 0.42f, cy - h * 0.23f), size = Size(w * 0.84f, h * 0.12f))
-
-        // ── Wood grain lines ──
-        for (i in -2..2) {
-            val lx = cx + i * w * 0.12f
-            drawOval(color = Color.Black.copy(alpha = 0.06f), topLeft = Offset(lx - w * 0.15f, cy - h * 0.15f), size = Size(w * 0.3f, h * 0.3f))
-        }
-
-        // ── Slit (opening) ──
-        val slit = Path().apply {
-            moveTo(cx - w * 0.22f, cy + h * 0.08f)
-            cubicTo(cx - w * 0.1f, cy + h * 0.2f, cx + w * 0.1f, cy + h * 0.2f, cx + w * 0.22f, cy + h * 0.08f)
-            cubicTo(cx + w * 0.1f, cy + h * 0.14f, cx - w * 0.1f, cy + h * 0.14f, cx - w * 0.22f, cy + h * 0.08f)
-        }
-        drawPath(slit, color = Color(0xFF3E2723))
-        drawPath(slit, color = Color.Black.copy(alpha = 0.3f), style = Stroke(1f))
-
-        // ── Strike pad (center circle) ──
+        for (i in -2..2) { val lx = cx + i * w * 0.12f; drawOval(color = Color.Black.copy(alpha = 0.06f), topLeft = Offset(lx - w * 0.15f, cy - h * 0.15f), size = Size(w * 0.3f, h * 0.3f)) }
+        val slit = Path().apply { moveTo(cx - w * 0.22f, cy + h * 0.08f); cubicTo(cx - w * 0.1f, cy + h * 0.2f, cx + w * 0.1f, cy + h * 0.2f, cx + w * 0.22f, cy + h * 0.08f); cubicTo(cx + w * 0.1f, cy + h * 0.14f, cx - w * 0.1f, cy + h * 0.14f, cx - w * 0.22f, cy + h * 0.08f) }
+        drawPath(slit, color = Color(0xFF3E2723)); drawPath(slit, color = Color.Black.copy(alpha = 0.3f), style = Stroke(1f))
         drawCircle(color = Color(0xFFEFEBE9), radius = w * 0.08f, center = Offset(cx, cy - h * 0.02f))
         drawCircle(color = Color(0xFFD7CCC8), radius = w * 0.045f, center = Offset(cx, cy - h * 0.02f))
-
-        // ── Mallet (rotate around pivot) ──
-        val hammerAngle = hammerOffset * -30f
-        val pivotX = cx + w * 0.38f; val pivotY = cy - h * 0.35f
-        drawContext.canvas.save()
-        drawContext.canvas.translate(pivotX, pivotY)
-        drawContext.canvas.rotate(hammerAngle)
-        drawContext.canvas.translate(-pivotX, -pivotY)
-        // Handle
-        drawLine(color = Color(0xFF5D4037), start = Offset(pivotX, pivotY), end = Offset(pivotX + w * 0.06f, pivotY + h * 0.38f), strokeWidth = 5f)
-        // Mallet head shadow
-        drawCircle(color = Color.Black.copy(alpha = 0.15f), radius = w * 0.095f, center = Offset(pivotX + w * 0.06f + 2.dp.toPx(), pivotY + h * 0.38f + 2.dp.toPx()))
-        // Mallet head
-        drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFBCAAA4), Color(0xFF6D4C41)), center = Offset(pivotX + w * 0.06f, pivotY + h * 0.38f), radius = w * 0.095f), radius = w * 0.095f, center = Offset(pivotX + w * 0.06f, pivotY + h * 0.38f))
+        val ha = hammerOffset * -30f; val px = cx + w * 0.38f; val py = cy - h * 0.35f
+        drawContext.canvas.save(); drawContext.canvas.translate(px, py); drawContext.canvas.rotate(ha); drawContext.canvas.translate(-px, -py)
+        drawLine(color = Color(0xFF5D4037), start = Offset(px, py), end = Offset(px + w * 0.06f, py + h * 0.38f), strokeWidth = 5f)
+        drawCircle(color = Color.Black.copy(alpha = 0.15f), radius = w * 0.095f, center = Offset(px + w * 0.06f + 2.dp.toPx(), py + h * 0.38f + 2.dp.toPx()))
+        drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFBCAAA4), Color(0xFF6D4C41)), center = Offset(px + w * 0.06f, py + h * 0.38f), radius = w * 0.095f), radius = w * 0.095f, center = Offset(px + w * 0.06f, py + h * 0.38f))
         drawContext.canvas.restore()
     }
 }
 
-// ═══════════════════ +1 ═══════════════════
-@Composable
-private fun PlusOneAnim(particle: PlusOneParticle) {
-    val color = PlusOneColors[particle.colorIndex % PlusOneColors.size]
-    val animatedY = remember { Animatable(0f) }
-    val animAlpha = remember { Animatable(1f) }
-    val offsetX = when (particle.positionIndex) { 0 -> -60f; 2 -> 60f; else -> 0f }
-
-    LaunchedEffect(particle.id) {
-        launch { animatedY.animateTo(-180f, tween(900, easing = FastOutSlowInEasing)) }
-        launch { kotlinx.coroutines.delay(500); animAlpha.animateTo(0f, tween(400)) }
-    }
-    Box(Modifier.offset(x = offsetX.dp, y = animatedY.value.dp).graphicsLayer { alpha = animAlpha.value }) {
-        Text("+1", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = color)
-    }
+@Composable private fun PlusOneAnim(particle: PlusOneParticle) {
+    val color = PlusOneColors[particle.colorIndex % PlusOneColors.size]; val aY = remember { Animatable(0f) }; val aA = remember { Animatable(1f) }
+    val oX = when (particle.positionIndex) { 0 -> -60f; 2 -> 60f; else -> 0f }
+    LaunchedEffect(particle.id) { launch { aY.animateTo(-180f, tween(900, easing = FastOutSlowInEasing)) }; launch { kotlinx.coroutines.delay(500); aA.animateTo(0f, tween(400)) } }
+    Box(Modifier.offset(x = oX.dp, y = aY.value.dp).graphicsLayer { alpha = aA.value }) { Text("+1", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = color) }
 }
 
-// ═══════════════════ COUNTER ═══════════════════
-@Composable
-private fun CounterDisplay(todayCount: Int, totalCount: Long, lang: String) {
+@Composable private fun CounterDisplay(todayCount: Int, totalCount: Long, lang: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(t(lang, "今日功德", "今日功德", "Today's Merit"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(4.dp))
         Text("$todayCount", style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Light, fontSize = 56.sp), color = MaterialTheme.colorScheme.onSurface)
-        if (todayCount > 0) {
-            Spacer(Modifier.height(2.dp))
-            Text("${t(lang, "总计", "總計", "Total")} $totalCount", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
-        }
+        if (todayCount > 0) { Spacer(Modifier.height(2.dp)); Text("${t(lang, "总计", "總計", "Total")} $totalCount", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) }
     }
 }
 
-// ═══════════════════ DRAWER ═══════════════════
-@Composable
-private fun DrawerContent(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, onSettings: (String) -> Unit, onAbout: () -> Unit) {
+// ═══════════════ DRAWER (no emoji) ═══════════════
+@Composable private fun DrawerContent(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, onPage: (String) -> Unit) {
     Column(Modifier.fillMaxHeight().padding(vertical = 24.dp)) {
         Text("Doki", modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-        Divider(modifier = Modifier.padding(horizontal = 16.dp))
-        Spacer(Modifier.height(8.dp))
-        DrawerItem(t(lang, "⚙ 提醒设置", "⚙ 提醒設定", "⚙ Notifications")) { viewModel.closeMenu(); onSettings("notify") }
-        DrawerItem(t(lang, "🎨 界面与语言", "🎨 界面與語言", "🎨 Appearance")) { viewModel.closeMenu(); onSettings("appearance") }
-        DrawerItem(t(lang, "📖 用户协议", "📖 用戶協議", "📖 User Agreement")) { viewModel.closeMenu(); viewModel.showLegalPage("agreement") }
-        DrawerItem(t(lang, "🔒 隐私政策", "🔒 隱私政策", "🔒 Privacy")) { viewModel.closeMenu(); viewModel.showLegalPage("privacy") }
-        DrawerItem(t(lang, "ℹ 关于", "ℹ 關於", "ℹ About")) { viewModel.closeMenu(); onAbout() }
+        Divider(modifier = Modifier.padding(horizontal = 16.dp)); Spacer(Modifier.height(8.dp))
+        Item(t(lang, "提醒设置", "提醒設定", "Notifications")) { viewModel.closeMenu(); onPage("notify") }
+        Item(t(lang, "界面主题", "界面主題", "Theme")) { viewModel.closeMenu(); onPage("appearance") }
+        Item(t(lang, "语言", "語言", "Language")) { viewModel.closeMenu(); onPage("language") }
+        Item(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration")) { viewModel.closeMenu(); onPage("sound") }
+        Item(t(lang, "用户协议", "用戶協議", "User Agreement")) { viewModel.closeMenu(); viewModel.showLegalPage("agreement") }
+        Item(t(lang, "隐私政策", "隱私政策", "Privacy")) { viewModel.closeMenu(); viewModel.showLegalPage("privacy") }
+        Item(t(lang, "关于", "關於", "About")) { viewModel.closeMenu(); onPage("about") }
     }
 }
-
-@Composable
-private fun DrawerItem(label: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp))
-    }
+@Composable private fun Item(label: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) { Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)) }
 }
 
-// ═══════════════════ NOTIFICATION SETTINGS ═══════════════════
+// ═══════════════ NOTIFICATION SETTINGS ═══════════════
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun NotifySettingsPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
+@Composable private fun NotifySettingsPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(t(lang, "开启提醒", "開啟提醒", "Enable"), style = MaterialTheme.typography.bodyLarge)
-            Switch(checked = state.notifyEnabled, onCheckedChange = { viewModel.updateNotificationEnabled(it) }, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primaryContainer))
+            Switch(checked = state.notifyEnabled, onCheckedChange = { viewModel.updateNotificationEnabled(it); viewModel.toast(if (it) t(lang, "提醒已开启", "提醒已開啟", "Notifications enabled") else t(lang, "提醒已关闭", "提醒已關閉", "Notifications disabled")) }, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primaryContainer))
         }
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)), shape = RoundedCornerShape(8.dp)) {
-            Text(t(lang, "💡 提示：请在系统设置中确保已授予 Doki 通知权限，否则提醒可能无法送达。", "💡 提示：請在系統設定中確保已授予 Doki 通知權限。", "💡 Tip: Please ensure notification permission is granted in system settings."), modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+            Text(t(lang, "提示：请在系统设置中确保已授予 Doki 通知权限，否则提醒可能无法送达。", "提示：請在系統設定中確保已授予 Doki 通知權限。", "Tip: Please ensure notification permission is granted in system settings."), modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
         }
-        if (state.notifyEnabled) {
-            Divider()
+        if (state.notifyEnabled) { Divider()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(t(lang, "随机时间", "隨機時間", "Random"), style = MaterialTheme.typography.bodyMedium)
-                Switch(checked = state.randomTime, onCheckedChange = { viewModel.updateRandomTime(it) }, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primaryContainer))
+                Switch(checked = state.randomTime, onCheckedChange = { viewModel.updateRandomTime(it); viewModel.toast(t(lang, "已切换", "已切換", "Changed")) }, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primaryContainer))
             }
             if (state.randomTime) {
                 Text("${t(lang, "提醒时段", "提醒時段", "Time range")}: ${state.notifyStart}:00 - ${state.notifyEnd}:00", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    HourPicker2(t(lang, "起始","起始","Start"), state.notifyStart, { viewModel.updateTimeRange(it, state.notifyEnd) })
-                    HourPicker2(t(lang, "结束","結束","End"), state.notifyEnd, { viewModel.updateTimeRange(state.notifyStart, it) })
-                }
-            } else {
-                CustomInterval(state, viewModel, lang)
-            }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) { HrP(t(lang, "起始","起始","Start"), state.notifyStart, { viewModel.updateTimeRange(it, state.notifyEnd) }); HrP(t(lang, "结束","結束","End"), state.notifyEnd, { viewModel.updateTimeRange(state.notifyStart, it) }) }
+            } else { CustomInterval(state, viewModel, lang) }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CustomInterval(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
+@Composable private fun CustomInterval(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
     val units = listOf(t(lang, "分钟", "分鐘", "min"), t(lang, "小时", "小時", "hr"), t(lang, "天", "天", "day"))
-    var inputText by remember(state.notifyIntervalValue, state.notifyIntervalUnit) { mutableStateOf(state.notifyIntervalValue.toString()) }
-    var selectedUnit by remember(state.notifyIntervalUnit) { mutableStateOf(state.notifyIntervalUnit) }
-    var showPresets by remember { mutableStateOf(false) }
-
+    var txt by remember(state.notifyIntervalValue, state.notifyIntervalUnit) { mutableStateOf(state.notifyIntervalValue.toString()) }
+    var unit by remember(state.notifyIntervalUnit) { mutableStateOf(state.notifyIntervalUnit) }
+    var show by remember { mutableStateOf(false) }
     Text("${t(lang, "自定义间隔", "自訂間隔", "Custom interval")}（${t(lang, "从设定后开始计时", "從設定後開始計時", "counts from now")}）", style = MaterialTheme.typography.bodyMedium)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(value = inputText, onValueChange = { inputText = it.filter { c -> c.isDigit() }.take(4) }, modifier = Modifier.weight(1f), singleLine = true, label = { Text(t(lang, "数值", "數值", "Value")) }, shape = RoundedCornerShape(8.dp))
-        units.forEach { u -> FilterChip(selected = selectedUnit == u, onClick = { selectedUnit = u }, label = { Text(u, fontSize = 12.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer)) }
+        OutlinedTextField(value = txt, onValueChange = { txt = it.filter { c -> c.isDigit() }.take(4) }, modifier = Modifier.weight(1f), singleLine = true, label = { Text(t(lang, "数值", "數值", "Value")) }, shape = RoundedCornerShape(8.dp))
+        units.forEach { u -> FilterChip(selected = unit == u, onClick = { unit = u }, label = { Text(u, fontSize = 12.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer)) }
     }
-    TextButton(onClick = { showPresets = !showPresets }) { Text(t(lang, "预设值 ▼", "預設值 ▼", "Presets ▼"), fontSize = 13.sp) }
-    if (showPresets) {
-        val list = when {
-            selectedUnit.contains(t(lang, "小时", "小時", "hr")) -> hourPresets
-            selectedUnit.contains(t(lang, "分钟", "分鐘", "min")) -> minPresets
-            else -> dayPresets
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) { list.forEach { v -> AssistChip(onClick = { inputText = v.toString() }, label = { Text("$v", fontSize = 12.sp) }, shape = RoundedCornerShape(8.dp)) } }
-    }
+    TextButton(onClick = { show = !show }) { Text(t(lang, "预设值", "預設值", "Presets"), fontSize = 13.sp) }
+    if (show) { val list = when { unit.contains(t(lang, "小时","小時","hr")) -> hourPresets; unit.contains(t(lang, "分钟","分鐘","min")) -> minPresets; else -> dayPresets }; Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) { list.forEach { v -> AssistChip(onClick = { txt = v.toString() }, label = { Text("$v", fontSize = 12.sp) }, shape = RoundedCornerShape(8.dp)) } } }
     Spacer(Modifier.height(8.dp))
-    Button(onClick = { val v = inputText.toIntOrNull() ?: 1; viewModel.updateInterval(v, selectedUnit) }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) { Text(t(lang, "保存间隔", "儲存間隔", "Save Interval")) }
+    Button(onClick = { val v = txt.toIntOrNull() ?: 1; viewModel.updateInterval(v, unit); viewModel.toast(t(lang, "间隔已保存", "間隔已儲存", "Interval saved")) }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) { Text(t(lang, "保存", "儲存", "Save")) }
 }
 
-@Composable
-private fun HourPicker2(label: String, value: Int, onChange: (Int) -> Unit, range: IntRange = 6..23) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(32.dp))
-        Slider(value = value.toFloat(), onValueChange = { onChange(it.toInt()) }, valueRange = range.first.toFloat()..range.last.toFloat(), steps = range.last - range.first - 1, colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary), modifier = Modifier.weight(1f))
-        Text("$value", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(24.dp))
-    }
+@Composable private fun HrP(label: String, value: Int, onChange: (Int) -> Unit, range: IntRange = 6..23) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) { Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(32.dp)); Slider(value = value.toFloat(), onValueChange = { onChange(it.toInt()) }, valueRange = range.first.toFloat()..range.last.toFloat(), steps = range.last - range.first - 1, colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary), modifier = Modifier.weight(1f)); Text("$value", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(24.dp)) }
 }
 
-// ═══════════════════ APPEARANCE ═══════════════════
-@Composable
-private fun AppearanceSettingsPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(t(lang, "语言", "語言", "Language"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LangChip("简体中文", "zh-CN", state.language) { viewModel.setLanguage(it) }
-            LangChip("繁體中文", "zh-TW", state.language) { viewModel.setLanguage(it) }
-            LangChip("English", "en", state.language) { viewModel.setLanguage(it) }
+// ═══════════════ APPEARANCE (theme color only) ═══════════════
+@Composable private fun AppearancePage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, isDark: Boolean) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(t(lang, "主题颜色", "主題顏色", "Theme Color"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        allThemes.forEachIndexed { i, tc ->
+            val name = when (lang) { "zh-TW" -> tc.nameTW; "en" -> tc.nameEN; else -> tc.name }
+            val bg = if (isDark) tc.darkScheme.primary else tc.lightScheme.primary
+            Row(Modifier.fillMaxWidth().clickable { viewModel.setThemeColor(i) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(24.dp).clip(CircleShape).background(bg))
+                Spacer(Modifier.width(12.dp))
+                Text(name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                if (state.themeColorIndex == i) Text("\u2713", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            }
         }
         Divider()
-        Text(t(lang, "界面主题", "界面主題", "Theme"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(t(lang, "界面模式", "界面模式", "Theme Mode"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ThemeChip(t(lang, "跟随系统", "跟隨系統", "System"), ThemeMode.SYSTEM, state.themeMode) { viewModel.setThemeMode(it) }
             ThemeChip(t(lang, "白昼模式", "白晝模式", "Light"), ThemeMode.LIGHT, state.themeMode) { viewModel.setThemeMode(it) }
@@ -345,31 +250,56 @@ private fun AppearanceSettingsPage(state: WoodenFishState, viewModel: WoodenFish
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable private fun LangChip(label: String, code: String, current: String, onSelect: (String) -> Unit) {
-    FilterChip(selected = current == code, onClick = { onSelect(code) }, label = { Text(label, fontSize = 13.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer))
-}
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable private fun ThemeChip(label: String, mode: ThemeMode, current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
-    FilterChip(selected = current == mode, onClick = { onSelect(mode) }, label = { Text(label, fontSize = 13.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer))
+// ═══════════════ LANGUAGE ═══════════════
+@Composable private fun LanguagePage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
+    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(Triple("简体中文", "zh-CN", "Simplified Chinese"), Triple("繁體中文", "zh-TW", "Traditional Chinese"), Triple("English", "en", "English")).forEach { (label, code, _) ->
+            Row(Modifier.fillMaxWidth().clickable { viewModel.setLanguage(code) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                if (state.language == code) Text("\u2713", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
 }
 
-// ═══════════════════ ABOUT ═══════════════════
-@Composable
-private fun AboutPage(viewModel: WoodenFishViewModel, lang: String, context: android.content.Context) {
-    val clickCount = viewModel.state.collectAsState().value.aboutClickCount
+// ═══════════════ SOUND & VIBRATION ═══════════════
+@Composable private fun SoundVibrationPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Text(t(lang, "声音反馈", "聲音回饋", "Sound Feedback"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        if (state.soundSupported) {
+            Text("${t(lang, "音量", "音量", "Volume")}: ${(state.soundVolume * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
+            Slider(value = state.soundVolume, onValueChange = { viewModel.setSoundVolume(it) }, colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary))
+        } else {
+            Slider(value = 0f, onValueChange = {}, enabled = false, colors = SliderDefaults.colors(disabledThumbColor = MaterialTheme.colorScheme.outline, disabledActiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)))
+            Text(t(lang, "您的设备不支持此功能", "您的設備不支援此功能", "Your device does not support this feature"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+        }
+
+        Divider()
+        Text(t(lang, "震动反馈", "震動回饋", "Vibration"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        if (state.vibrationSupported) {
+            Text("${t(lang, "强度", "強度", "Intensity")}: ${(state.vibrationIntensity * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
+            Slider(value = state.vibrationIntensity, onValueChange = { viewModel.setVibrationIntensity(it) }, colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary))
+        } else {
+            Slider(value = 0f, onValueChange = {}, enabled = false, colors = SliderDefaults.colors(disabledThumbColor = MaterialTheme.colorScheme.outline, disabledActiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)))
+            Text(t(lang, "您的设备不支持此功能", "您的設備不支援此功能", "Your device does not support this feature"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable private fun ThemeChip(label: String, mode: ThemeMode, current: ThemeMode, onSelect: (ThemeMode) -> Unit) { FilterChip(selected = current == mode, onClick = { onSelect(mode) }, label = { Text(label, fontSize = 13.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer)) }
+
+// ═══════════════ ABOUT ═══════════════
+@Composable private fun AboutPage(viewModel: WoodenFishViewModel, lang: String, context: android.content.Context) {
+    val cc = viewModel.state.collectAsState().value.aboutClickCount
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Spacer(Modifier.height(40.dp))
         Text("Doki", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-        Text(t(lang, "电子木鱼 · 功德 +1", "電子木魚 · 功德 +1", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
-        TextButton(onClick = {
-            viewModel.onVersionClick()
-            if (clickCount + 1 >= 5) {
-                viewModel.resetAboutClicks()
-                context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki 应用反馈") })
-            }
-        }) { Text("${t(lang, "版本", "版本", "Version")} 1.0.1", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
+            Text("${t(lang, "版本", "版本", "Version")} 1.1", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         Spacer(Modifier.height(24.dp))
@@ -377,16 +307,15 @@ private fun AboutPage(viewModel: WoodenFishViewModel, lang: String, context: and
     }
 }
 
-// ═══════════════════ AGREEMENT ═══════════════════
-@Composable
-private fun AgreementDialog(onAgree: () -> Unit, onViewAgreement: () -> Unit, onViewPrivacy: () -> Unit, lang: String) {
+// ═══════════════ AGREEMENT ═══════════════
+@Composable private fun AgreementDialog(onAgree: () -> Unit, onViewAgreement: () -> Unit, onViewPrivacy: () -> Unit, lang: String) {
     Dialog(onDismissRequest = {}, properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)) {
         Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(t(lang, "欢迎使用 Doki", "歡迎使用 Doki", "Welcome to Doki"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Text(t(lang, "在使用前，请阅读并同意以下协议：", "在使用前，請閱讀並同意以下協議：", "Please read and agree before using:"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                TextButton(onClick = onViewAgreement, modifier = Modifier.fillMaxWidth()) { Text("📄 ${t(lang, "查看《用户协议》", "查看《用戶協議》", "View User Agreement")}", color = MaterialTheme.colorScheme.primary) }
-                TextButton(onClick = onViewPrivacy, modifier = Modifier.fillMaxWidth()) { Text("🔒 ${t(lang, "查看《隐私政策》", "查看《隱私政策》", "View Privacy Policy")}", color = MaterialTheme.colorScheme.primary) }
+                TextButton(onClick = onViewAgreement, Modifier.fillMaxWidth()) { Text(t(lang, "查看《用户协议》", "查看《用戶協議》", "View User Agreement"), color = MaterialTheme.colorScheme.primary) }
+                TextButton(onClick = onViewPrivacy, Modifier.fillMaxWidth()) { Text(t(lang, "查看《隐私政策》", "查看《隱私政策》", "View Privacy Policy"), color = MaterialTheme.colorScheme.primary) }
                 Divider()
                 Text(t(lang, "点击同意即表示您已阅读并同意以上协议。", "點擊同意即表示您已閱讀並同意以上協議。", "Tapping Agree means you accept the terms."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(onClick = onAgree, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) { Text(t(lang, "同意并继续", "同意並繼續", "Agree & Continue")) }
