@@ -16,6 +16,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,6 +49,7 @@ import com.woodenfish.app.WoodenFishState
 import com.woodenfish.app.WoodenFishViewModel
 import com.woodenfish.app.ui.theme.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private fun t(lang: String, zhCN: String, zhTW: String, en: String) = when (lang) { "zh-TW" -> zhTW; "en" -> en; else -> zhCN }
 
@@ -415,21 +419,22 @@ private fun GifSearchPage(viewModel: WoodenFishViewModel, lang: String, context:
     var query by remember { mutableStateOf("") }
     var gifs by remember { mutableStateOf<List<String>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     fun search(q: String) {
         if (q.isBlank()) return
         loading = true
-        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val url = java.net.URL("https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${java.net.URLEncoder.encode(q, "UTF-8")}&limit=20")
                 val json = url.readText()
                 val arr = org.json.JSONObject(json).getJSONArray("data")
                 val urls = mutableListOf<String>()
                 for (i in 0 until arr.length()) {
-                    urls.add(arr.getJSONObject(i).getJSONObject("images").getJSONObject("fixed_height").getString("url"))
+                    urls.add(arr.getJSONObject(i).getJSONObject("images").getJSONObject("fixed_height_downsampled").getString("url"))
                 }
-                gifs = urls; loading = false
-            } catch (_: Exception) { loading = false }
+                withContext(kotlinx.coroutines.Dispatchers.Main) { gifs = urls; loading = false }
+            } catch (_: Exception) { withContext(kotlinx.coroutines.Dispatchers.Main) { loading = false } }
         }
     }
 
@@ -441,25 +446,29 @@ private fun GifSearchPage(viewModel: WoodenFishViewModel, lang: String, context:
 
         if (loading) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
         else {
-            val scroll = rememberScrollState()
-            Column(Modifier.fillMaxSize().verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                gifs.chunked(2).forEach { row ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { url ->
-                            Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(8.dp)).clickable {
-                                kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                    try {
-                                        val gifUrl = java.net.URL(url).readBytes()
-                                        val f = java.io.File(context.cacheDir, "gif_${System.currentTimeMillis()}.gif")
-                                        f.writeBytes(gifUrl)
-                                        viewModel.setCustomMedia(f.absolutePath)
-                                        viewModel.toast(t(lang, "已导入", "已匯入", "Imported"))
-                                    } catch (_: Exception) {}
+            LazyVerticalGrid(columns = GridCells.Fixed(2), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(gifs.size) { idx ->
+                    val gifUrl = gifs[idx]
+                    // Get full-size URL
+                    val fullUrl = gifUrl.replace("fixed_height_downsampled", "fixed_height")
+                    Box(Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).clickable {
+                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                val bytes = java.net.URL(fullUrl).readBytes()
+                                val f = java.io.File(context.cacheDir, "gif_${System.currentTimeMillis()}.gif")
+                                f.writeBytes(bytes)
+                                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    viewModel.setCustomMedia(f.absolutePath)
+                                    viewModel.toast(t(lang, "已导入", "已匯入", "Imported"))
                                 }
-                            }) {
-                                AsyncImage(url, Modifier.fillMaxSize())
+                            } catch (_: Exception) {
+                                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    viewModel.toast(t(lang, "导入失败", "匯入失敗", "Import failed"))
+                                }
                             }
                         }
+                    }) {
+                        AsyncImage(gifUrl, Modifier.fillMaxSize())
                     }
                 }
             }
