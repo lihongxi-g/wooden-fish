@@ -85,11 +85,14 @@ class MainActivity : ComponentActivity() {
         Toast.makeText(this, "正在下载更新...", Toast.LENGTH_SHORT).show()
         Updater.downloadApk(this, url, onProgress = {}, onResult = { file ->
             runOnUiThread {
-                if (file != null) {
-                    Toast.makeText(this, "下载完成，请确认安装", Toast.LENGTH_SHORT).show()
-                    Updater.install(this, file)
-                } else {
-                    Toast.makeText(this, "下载失败，请稍后重试", Toast.LENGTH_SHORT).show()
+                try {
+                    if (file != null) {
+                        Toast.makeText(this, "下载完成，请确认安装", Toast.LENGTH_SHORT).show()
+                        Updater.install(this, file)
+                    } else {
+                        Toast.makeText(this, "下载失败，请稍后重试", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (_: Exception) {
                 }
             }
         })

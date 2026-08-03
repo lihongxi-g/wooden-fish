@@ -250,11 +250,14 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
         toast(if (_state.value.language == "en") "Downloading update..." else if (_state.value.language == "zh-TW") "正在下載更新..." else "正在下载更新...")
         Updater.downloadApk(context, url, onProgress = {}, onResult = { file ->
             android.os.Handler(android.os.Looper.getMainLooper()).post {
-                if (file != null) {
-                    toast(if (_state.value.language == "en") "Download complete" else if (_state.value.language == "zh-TW") "下載完成" else "下载完成")
-                    Updater.install(context, file)
-                } else {
-                    toast(if (_state.value.language == "en") "Download failed" else if (_state.value.language == "zh-TW") "下載失敗" else "下载失败")
+                try {
+                    if (file != null) {
+                        toast(if (_state.value.language == "en") "Download complete" else if (_state.value.language == "zh-TW") "下載完成" else "下载完成")
+                        Updater.install(context, file)
+                    } else {
+                        toast(if (_state.value.language == "en") "Download failed" else if (_state.value.language == "zh-TW") "下載失敗" else "下载失败")
+                    }
+                } catch (_: Exception) {
                 }
             }
         })

@@ -53,10 +53,12 @@ object Updater {
             var file: File? = null
             try {
                 val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-                conn.connectTimeout = 8000
-                conn.readTimeout = 15000
+                conn.connectTimeout = 10000
+                conn.readTimeout = 60000
+                conn.setRequestProperty("User-Agent", "Doki-Updater/2.0")
                 val total = conn.contentLength
                 val target = File(context.cacheDir, "update.apk")
+                target.delete() // 先删旧文件，避免残留损坏文件
                 conn.inputStream.use { ins ->
                     java.io.FileOutputStream(target).use { fos ->
                         val buf = ByteArray(8192)
@@ -69,20 +71,30 @@ object Updater {
                         }
                     }
                 }
-                file = target
+                // 校验下载的是有效 APK（损坏文件会导致安装崩溃）
+                val pkgInfo = try {
+                    context.packageManager.getPackageArchiveInfo(target.absolutePath, 0)
+                } catch (_: Exception) { null }
+                if (pkgInfo != null && target.length() > 1_000_000) file = target
+                else target.delete()
             } catch (_: Exception) {}
             onResult(file)
         }.start()
     }
 
-    /** 调起系统安装器（用户确认后安装） */
+    /** 调起系统安装器（用户确认后安装）。用 applicationContext，避免 Activity 销毁后崩溃 */
     fun install(context: Context, file: File) {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            val appCtx = context.applicationContext
+            val uri = FileProvider.getUriForFile(appCtx, "${appCtx.packageName}.fileprovider", file)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            appCtx.startActivity(intent)
+        } catch (e: Exception) {
+            try { android.widget.Toast.makeText(context.applicationContext, "无法打开安装器，请到 GitHub 手动下载", android.widget.Toast.LENGTH_SHORT).show() } catch (_: Exception) {}
         }
-        context.startActivity(intent)
     }
 
     /** 版本号比较："1.9" vs "1.10" → 后者新 */
