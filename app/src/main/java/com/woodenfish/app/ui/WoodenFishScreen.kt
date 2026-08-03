@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -167,20 +168,36 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
         scaleX = s; scaleY = s
         rotationZ = -4f * (1f - p)
     }) {
-        val w = size.width; val h = size.height; val cx = w / 2; val cy = h / 2
-        drawOval(color = Color.Black.copy(alpha = 0.15f), topLeft = Offset(cx - w * 0.4f, cy - h * 0.18f + 4.dp.toPx()), size = Size(w * 0.8f, h * 0.46f))
-        drawOval(brush = Brush.verticalGradient(listOf(Color(0xFFA1887F), Color(0xFF6D4C41), Color(0xFF4E342E)), startY = cy - h * 0.25f, endY = cy + h * 0.25f), topLeft = Offset(cx - w * 0.42f, cy - h * 0.25f), size = Size(w * 0.84f, h * 0.5f))
-        drawOval(color = Color(0xFFBCAAA4), topLeft = Offset(cx - w * 0.42f, cy - h * 0.23f), size = Size(w * 0.84f, h * 0.12f))
-        for (i in -2..2) { val lx = cx + i * w * 0.12f; drawOval(color = Color.Black.copy(alpha = 0.06f), topLeft = Offset(lx - w * 0.15f, cy - h * 0.15f), size = Size(w * 0.3f, h * 0.3f)) }
-        val slit = Path().apply { moveTo(cx - w * 0.22f, cy + h * 0.08f); cubicTo(cx - w * 0.1f, cy + h * 0.2f, cx + w * 0.1f, cy + h * 0.2f, cx + w * 0.22f, cy + h * 0.08f); cubicTo(cx + w * 0.1f, cy + h * 0.14f, cx - w * 0.1f, cy + h * 0.14f, cx - w * 0.22f, cy + h * 0.08f) }
-        drawPath(slit, color = Color(0xFF3E2723)); drawPath(slit, color = Color.Black.copy(alpha = 0.3f), style = Stroke(1f))
-        drawCircle(color = Color(0xFFEFEBE9), radius = w * 0.08f, center = Offset(cx, cy - h * 0.02f))
-        drawCircle(color = Color(0xFFD7CCC8), radius = w * 0.045f, center = Offset(cx, cy - h * 0.02f))
-        val ha = (1f - tapAnim.value) * -30f; val px = cx + w * 0.38f; val py = cy - h * 0.35f
+        val w = size.width; val h = size.height
+        // 地面阴影
+        drawOval(color = Color.Black.copy(alpha = 0.12f), topLeft = Offset(w * 0.37f, h * 0.8f), size = Size(w * 0.26f, h * 0.06f))
+        // 木鱼主体
+        drawOval(brush = Brush.verticalGradient(listOf(Color(0xFF9B572E), Color(0xFF7A3F1F)), startY = h * 0.2f, endY = h * 0.8f), topLeft = Offset(w * 0.15f, h * 0.2f), size = Size(w * 0.7f, h * 0.6f))
+        drawOval(color = Color(0xFF5C3018), topLeft = Offset(w * 0.15f, h * 0.2f), size = Size(w * 0.7f, h * 0.6f), style = Stroke(width = w * 0.012f))
+        // 顶部凸起
+        drawOval(brush = Brush.verticalGradient(listOf(Color(0xFFA96235), Color(0xFF8F4A22)), startY = h * 0.1f, endY = h * 0.37f), topLeft = Offset(w * 0.3f, h * 0.1f), size = Size(w * 0.4f, h * 0.27f))
+        drawOval(color = Color(0xFF5C3018), topLeft = Offset(w * 0.3f, h * 0.1f), size = Size(w * 0.4f, h * 0.27f), style = Stroke(width = w * 0.01f))
+        // 主体高光
+        drawOval(color = Color.White.copy(alpha = 0.15f), topLeft = Offset(w * 0.24f, h * 0.28f), size = Size(w * 0.14f, h * 0.13f))
+        // 敲击孔（共鸣孔）
+        drawOval(color = Color(0xFF3B1D0D), topLeft = Offset(w * 0.41f, h * 0.35f), size = Size(w * 0.18f, h * 0.23f))
+        drawOval(color = Color(0xFF241006), topLeft = Offset(w * 0.41f, h * 0.35f), size = Size(w * 0.18f, h * 0.23f), style = Stroke(width = w * 0.008f))
+        drawOval(color = Color(0xFF1E0E06), topLeft = Offset(w * 0.445f, h * 0.41f), size = Size(w * 0.11f, h * 0.16f))
+        drawArc(color = Color(0xFFC88C5A).copy(alpha = 0.7f), startAngle = 190f, sweepAngle = 160f, useCenter = false, topLeft = Offset(w * 0.41f, h * 0.35f), size = Size(w * 0.18f, h * 0.23f), style = Stroke(width = w * 0.008f))
+        // 木纹
+        drawArc(color = Color(0xFFC47A45), startAngle = 20f, sweepAngle = 130f, useCenter = false, topLeft = Offset(w * 0.21f, h * 0.25f), size = Size(w * 0.58f, h * 0.5f), style = Stroke(width = w * 0.008f))
+        drawArc(color = Color(0xFF713A1D), startAngle = 200f, sweepAngle = 140f, useCenter = false, topLeft = Offset(w * 0.25f, h * 0.3f), size = Size(w * 0.5f, h * 0.43f), style = Stroke(width = w * 0.005f))
+        // 底座
+        drawRoundRect(color = Color(0xFF633317), topLeft = Offset(w * 0.36f, h * 0.75f), size = Size(w * 0.28f, h * 0.13f), cornerRadius = CornerRadius(w * 0.01f))
+        drawRoundRect(color = Color(0xFF3B1C0C), topLeft = Offset(w * 0.36f, h * 0.75f), size = Size(w * 0.28f, h * 0.13f), cornerRadius = CornerRadius(w * 0.01f), style = Stroke(width = w * 0.01f))
+        drawLine(color = Color(0xFFA06437), start = Offset(w * 0.375f, h * 0.76f), end = Offset(w * 0.625f, h * 0.76f), strokeWidth = w * 0.006f)
+        // 木鱼槌（敲在共鸣孔上，动画由 tapAnim 单驱动，跟手）
+        val ha = (1f - tapAnim.value) * -30f
+        val px = w * 0.5f; val py = h * 0.08f
         drawContext.canvas.save(); drawContext.canvas.translate(px, py); drawContext.canvas.rotate(ha); drawContext.canvas.translate(-px, -py)
-        drawLine(color = Color(0xFF5D4037), start = Offset(px, py), end = Offset(px + w * 0.06f, py + h * 0.38f), strokeWidth = 5f)
-        drawCircle(color = Color.Black.copy(alpha = 0.15f), radius = w * 0.095f, center = Offset(px + w * 0.06f + 2.dp.toPx(), py + h * 0.38f + 2.dp.toPx()))
-        drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFBCAAA4), Color(0xFF6D4C41)), center = Offset(px + w * 0.06f, py + h * 0.38f), radius = w * 0.095f), radius = w * 0.095f, center = Offset(px + w * 0.06f, py + h * 0.38f))
+        drawLine(color = Color(0xFF5D4037), start = Offset(px, py), end = Offset(px + w * 0.05f, py + h * 0.38f), strokeWidth = w * 0.015f)
+        drawCircle(color = Color.Black.copy(alpha = 0.15f), radius = w * 0.07f, center = Offset(px + w * 0.05f + 2.dp.toPx(), py + h * 0.38f + 2.dp.toPx()))
+        drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFBCAAA4), Color(0xFF6D4C41)), center = Offset(px + w * 0.05f, py + h * 0.38f), radius = w * 0.07f), radius = w * 0.07f, center = Offset(px + w * 0.05f, py + h * 0.38f))
         drawContext.canvas.restore()
     }
 }
@@ -505,7 +522,7 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 2.0.5", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 2.0.6", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
