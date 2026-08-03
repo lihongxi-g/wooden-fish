@@ -3,7 +3,8 @@ package com.woodenfish.app.ui
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import android.widget.VideoView
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -90,7 +91,8 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
             "appearance" -> { SubPage(t(lang, "界面主题", "界面主題", "Theme"), onBack = { page = null }) { AppearancePage(state, viewModel, lang, isDark) }; return@WoodenFishTheme }
             "language" -> { SubPage(t(lang, "语言", "語言", "Language"), onBack = { page = null }) { LanguagePage(state, viewModel, lang) }; return@WoodenFishTheme }
             "sound" -> { SubPage(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration"), onBack = { page = null }) { SoundVibrationPage(state, viewModel, lang) }; return@WoodenFishTheme }
-            "custom" -> { SubPage(t(lang, "自定义物体", "自訂物體", "Custom Object"), onBack = { page = null }) { CustomObjectPage(state, viewModel, lang, context) }; return@WoodenFishTheme }
+            "custom" -> { SubPage(t(lang, "自定义物体", "自訂物體", "Custom Object"), onBack = { page = null }) { CustomObjectPage(state, viewModel, lang, context, onNavigate = { page = it }) }; return@WoodenFishTheme }
+            "gifsearch" -> { SubPage(t(lang, "GIF搜索", "GIF搜尋", "GIF Search"), onBack = { page = null }) { GifSearchPage(viewModel, lang, context) }; return@WoodenFishTheme }
             "about" -> { SubPage(t(lang, "关于", "關於", "About"), onBack = { page = null; viewModel.resetAboutClicks() }) { AboutPage(viewModel, lang, context) }; return@WoodenFishTheme }
         }
 
@@ -108,8 +110,12 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
                         Spacer(Modifier.height(32.dp))
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(240.dp)) {
                             state.particles.forEach { PlusOneAnim(it) }
-                            Box(Modifier.size(200.dp).clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { viewModel.onFishTap() }, contentAlignment = Alignment.Center) {
-                                FishCanvas(hammerOffset = state.hammerOffset, modifier = Modifier.size(190.dp))
+                            if (state.customMode && state.customMediaPath != null) {
+                                CustomMediaView(path = state.customMediaPath!!, modifier = Modifier.size(200.dp))
+                            } else {
+                                Box(Modifier.size(200.dp).clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { viewModel.onFishTap() }, contentAlignment = Alignment.Center) {
+                                    FishCanvas(hammerOffset = state.hammerOffset, modifier = Modifier.size(190.dp))
+                                }
                             }
                         }
                     }
@@ -298,7 +304,7 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
 
 // ═══════════════ CUSTOM OBJECT ═══════════════
 @Composable
-private fun CustomObjectPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, context: android.content.Context) {
+private fun CustomObjectPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, context: android.content.Context, onNavigate: (String) -> Unit) {
     val mediaLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
             val path = copyUriToCache(context, it)
@@ -328,6 +334,11 @@ private fun CustomObjectPage(state: WoodenFishState, viewModel: WoodenFishViewMo
 
             Button(onClick = { mediaLauncher.launch("video/*") }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) {
                 Text(if (state.customMediaPath != null) t(lang, "已选择媒体 \u2713", "已選擇媒體 \u2713", "Media selected \u2713") else t(lang, "选择媒体文件", "選擇媒體檔案", "Select Media File"))
+            }
+
+            // Online GIF search
+            OutlinedButton(onClick = { onNavigate("gifsearch") }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
+                Text(t(lang, "在线搜索GIF动图", "在線搜尋GIF動圖", "Search GIFs Online"))
             }
 
             // Preview
@@ -374,6 +385,105 @@ private fun copyUriToCache(context: android.content.Context, uri: Uri): String {
     return file.absolutePath
 }
 
+// ═══════════════ CUSTOM MEDIA VIEW ═══════════════
+@Composable
+private fun CustomMediaView(path: String, modifier: Modifier) {
+    val ext = path.substringAfterLast('.', "").lowercase()
+    if (ext == "mp4") {
+        AndroidView(factory = { ctx ->
+            android.widget.VideoView(ctx).apply {
+                setVideoPath(path); setOnPreparedListener { it.isLooping = true; it.setVolume(0f, 0f); start() }
+            }
+        }, modifier = modifier.clip(RoundedCornerShape(16.dp)))
+    } else {
+        // GIF / WebP / static images
+        AndroidView(factory = { ctx ->
+            WebView(ctx).apply {
+                webViewClient = WebViewClient()
+                settings.apply { allowFileAccess = true; javaScriptEnabled = false }
+                loadUrl("file://$path")
+            }
+        }, modifier = modifier.clip(RoundedCornerShape(16.dp)))
+    }
+}
+
+// ═══════════════ GIF SEARCH PAGE ═══════════════
+@Composable
+private fun GifSearchPage(viewModel: WoodenFishViewModel, lang: String, context: android.content.Context) {
+    var query by remember { mutableStateOf("") }
+    var gifs by remember { mutableStateOf<List<String>>(emptyList()) }
+    var loading by remember { mutableStateOf(false) }
+
+    fun search(q: String) {
+        if (q.isBlank()) return
+        loading = true
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val url = java.net.URL("https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${java.net.URLEncoder.encode(q, "UTF-8")}&limit=20")
+                val json = url.readText()
+                val arr = org.json.JSONObject(json).getJSONArray("data")
+                val urls = mutableListOf<String>()
+                for (i in 0 until arr.length()) {
+                    urls.add(arr.getJSONObject(i).getJSONObject("images").getJSONObject("fixed_height").getString("url"))
+                }
+                gifs = urls; loading = false
+            } catch (_: Exception) { loading = false }
+        }
+    }
+
+    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.weight(1f), singleLine = true, placeholder = { Text(t(lang, "搜索GIF...", "搜尋GIF...", "Search GIFs...")) }, shape = RoundedCornerShape(8.dp))
+            Button(onClick = { search(query) }) { Text(t(lang, "搜索", "搜尋", "Search")) }
+        }
+
+        if (loading) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+        else {
+            val scroll = rememberScrollState()
+            Column(Modifier.fillMaxSize().verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                gifs.chunked(2).forEach { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { url ->
+                            Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(8.dp)).clickable {
+                                viewModel.viewModelScope.launch {
+                                    try {
+                                        val gifUrl = java.net.URL(url).readBytes()
+                                        val f = java.io.File(context.cacheDir, "gif_${System.currentTimeMillis()}.gif")
+                                        f.writeBytes(gifUrl)
+                                        viewModel.setCustomMedia(f.absolutePath)
+                                        viewModel.toast(t(lang, "已导入", "已匯入", "Imported"))
+                                    } catch (_: Exception) {}
+                                }
+                            }) {
+                                AsyncImage(url, Modifier.fillMaxSize())
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AsyncImage(url: String, modifier: Modifier) {
+    var bitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(url) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val gifBytes = java.net.URL(url).readBytes()
+                val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                android.graphics.BitmapFactory.decodeByteArray(gifBytes, 0, gifBytes.size, opts)
+                opts.inJustDecodeBounds = false; opts.inSampleSize = 2
+                bitmap = android.graphics.BitmapFactory.decodeByteArray(gifBytes, 0, gifBytes.size, opts)
+            } catch (_: Exception) {}
+        }
+    }
+    bitmap?.let {
+        androidx.compose.foundation.Image(bitmap = it.asImageBitmap(), contentDescription = null, modifier = modifier)
+    } ?: Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant))
+}
+
 // ═══════════════ ABOUT ═══════════════
 @Composable private fun AboutPage(viewModel: WoodenFishViewModel, lang: String, context: android.content.Context) {
     val cc = viewModel.state.collectAsState().value.aboutClickCount
@@ -383,7 +493,7 @@ private fun copyUriToCache(context: android.content.Context, uri: Uri): String {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 1.2", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 1.3", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
