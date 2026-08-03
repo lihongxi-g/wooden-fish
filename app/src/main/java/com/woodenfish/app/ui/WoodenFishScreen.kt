@@ -5,6 +5,7 @@ import android.net.Uri
 import android.widget.Toast
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.VideoView
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,6 +30,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -362,7 +364,7 @@ private fun CustomObjectPage(state: WoodenFishState, viewModel: WoodenFishViewMo
 
             // Test play
             if (state.customAudioPath != null) {
-                OutlinedButton(onClick = { viewModel.playCustomAudio(state.soundVolume) }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
+                OutlinedButton(onClick = { viewModel.testCustomAudio(state.soundVolume) }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
                     Text(t(lang, "试听音效", "試聽音效", "Test Sound"))
                 }
             }
@@ -445,7 +447,7 @@ private fun GifSearchPage(viewModel: WoodenFishViewModel, lang: String, context:
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         row.forEach { url ->
                             Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(8.dp)).clickable {
-                                viewModel.viewModelScope.launch {
+                                kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                     try {
                                         val gifUrl = java.net.URL(url).readBytes()
                                         val f = java.io.File(context.cacheDir, "gif_${System.currentTimeMillis()}.gif")

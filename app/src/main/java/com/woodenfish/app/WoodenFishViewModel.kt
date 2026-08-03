@@ -150,6 +150,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     fun setCustomMedia(p: String?) { prefs.setCustomMediaPath(p); _state.value = _state.value.copy(customMediaPath = p) }
     fun setCustomAudio(p: String?) { prefs.setCustomAudioPath(p); _state.value = _state.value.copy(customAudioPath = p) }
     fun setCustomMode(v: Boolean) { prefs.setCustomMode(v); _state.value = _state.value.copy(customMode = v) }
+    fun testCustomAudio(vol: Float) { val p = prefs.getCustomAudioPath(); if (p != null) playCustomSound(p, vol) }
     fun agreeToTerms() { prefs.setAgreedTerms(); _state.value = _state.value.copy(showAgreement = false) }
     fun showLegalPage(p: String) { _state.value = _state.value.copy(showLegalPage = p) }
     fun dismissLegalPage() { _state.value = _state.value.copy(showLegalPage = null) }
