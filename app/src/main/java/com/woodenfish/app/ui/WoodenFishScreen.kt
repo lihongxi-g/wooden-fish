@@ -56,10 +56,12 @@ private fun isPackageInstalled(context: android.content.Context, pkg: String): B
 } catch (_: Exception) { false }
 
 private fun openCalendarStore(context: android.content.Context) {
+    val url = "https://play.google.com/store/apps/details?id=com.google.android.calendar"
+    // 优先用 Google Play 商店打开，没有 Play 商店则回退浏览器打开 Google Play 网页
     try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.google.android.calendar")))
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage("com.android.vending"))
     } catch (_: Exception) {
-        try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.calendar"))) } catch (_: Exception) {}
+        try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } catch (_: Exception) {}
     }
 }
 
@@ -263,7 +265,8 @@ private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
             }
             when {
                 state.fixedTimeEnabled -> {
-                    TimeRow(t(lang, "每日时间", "每日時間", "Daily time"), state.fixedTimeMin, lang) { viewModel.updateFixedTimeMin(it) }
+                    Text(t(lang, "自定义时间（每天固定这个时间提醒）", "自訂時間（每天固定這個時間提醒）", "Custom time (remind daily at this fixed time)"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    TimePickerButton(state.fixedTimeMin, lang) { viewModel.updateFixedTimeMin(it) }
                     Text(t(lang, "提醒已写入系统日历（Google 日历需登录 Google 账号并开启同步），由日历 App 到点提醒，Doki 无需后台运行。可在日历中修改或删除。", "提醒已寫入系統日曆（Google 日曆需登入 Google 帳號並開啟同步），由日曆 App 到點提醒，Doki 無需後台運行。可在日曆中修改或刪除。", "Reminder saved to system calendar (Google Calendar needs a Google account with sync on). The calendar app alerts you; Doki runs nothing in background. Editable in calendar."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (!gcalInstalled) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -342,6 +345,29 @@ private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable private fun ModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
     FilterChip(selected = selected, onClick = onClick, label = { Text(label, fontSize = 12.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer))
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable private fun TimePickerButton(minute: Int, lang: String, onChange: (Int) -> Unit) {
+    var showPicker by remember { mutableStateOf(false) }
+    val hour = minute / 60; val min = minute % 60
+    OutlinedButton(onClick = { showPicker = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
+        Text(String.format("%02d:%02d", hour, min), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+    }
+    if (showPicker) {
+        val pickerState = rememberTimePickerState(initialHour = hour, initialMinute = min, is24Hour = true)
+        Dialog(onDismissRequest = { showPicker = false }) {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    TimePicker(state = pickerState)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { showPicker = false }) { Text(t(lang, "取消", "取消", "Cancel")) }
+                        TextButton(onClick = { onChange(pickerState.hour * 60 + pickerState.minute); showPicker = false }) { Text(t(lang, "确定", "確定", "OK"), color = MaterialTheme.colorScheme.primary) }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // ═══════════════ APPEARANCE (theme color only) ═══════════════
@@ -432,7 +458,7 @@ private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 1.8", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 1.9", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
