@@ -3,7 +3,10 @@ package com.woodenfish.app.ui
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import android.widget.VideoView
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -32,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.woodenfish.app.PlusOneParticle
@@ -86,6 +90,7 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
             "appearance" -> { SubPage(t(lang, "界面主题", "界面主題", "Theme"), onBack = { page = null }) { AppearancePage(state, viewModel, lang, isDark) }; return@WoodenFishTheme }
             "language" -> { SubPage(t(lang, "语言", "語言", "Language"), onBack = { page = null }) { LanguagePage(state, viewModel, lang) }; return@WoodenFishTheme }
             "sound" -> { SubPage(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration"), onBack = { page = null }) { SoundVibrationPage(state, viewModel, lang) }; return@WoodenFishTheme }
+            "custom" -> { SubPage(t(lang, "自定义物体", "自訂物體", "Custom Object"), onBack = { page = null }) { CustomObjectPage(state, viewModel, lang, context) }; return@WoodenFishTheme }
             "about" -> { SubPage(t(lang, "关于", "關於", "About"), onBack = { page = null; viewModel.resetAboutClicks() }) { AboutPage(viewModel, lang, context) }; return@WoodenFishTheme }
         }
 
@@ -173,6 +178,7 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
         Item(t(lang, "界面主题", "界面主題", "Theme")) { viewModel.closeMenu(); onPage("appearance") }
         Item(t(lang, "语言", "語言", "Language")) { viewModel.closeMenu(); onPage("language") }
         Item(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration")) { viewModel.closeMenu(); onPage("sound") }
+        Item(t(lang, "自定义物体", "自訂物體", "Custom Object")) { viewModel.closeMenu(); onPage("custom") }
         Item(t(lang, "用户协议", "用戶協議", "User Agreement")) { viewModel.closeMenu(); viewModel.showLegalPage("agreement") }
         Item(t(lang, "隐私政策", "隱私政策", "Privacy")) { viewModel.closeMenu(); viewModel.showLegalPage("privacy") }
         Item(t(lang, "关于", "關於", "About")) { viewModel.closeMenu(); onPage("about") }
@@ -290,6 +296,84 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable private fun ThemeChip(label: String, mode: ThemeMode, current: ThemeMode, onSelect: (ThemeMode) -> Unit) { FilterChip(selected = current == mode, onClick = { onSelect(mode) }, label = { Text(label, fontSize = 13.sp) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer)) }
 
+// ═══════════════ CUSTOM OBJECT ═══════════════
+@Composable
+private fun CustomObjectPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, context: android.content.Context) {
+    val mediaLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let {
+            val path = copyUriToCache(context, it)
+            viewModel.setCustomMedia(path)
+            viewModel.toast(t(lang, "媒体已导入", "媒體已匯入", "Media imported"))
+        }
+    }
+    val audioLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let {
+            val path = copyUriToCache(context, it)
+            viewModel.setCustomAudio(path)
+            viewModel.toast(t(lang, "音效已导入", "音效已匯入", "Audio imported"))
+        }
+    }
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Enable toggle
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(t(lang, "启用自定义物体", "啟用自訂物體", "Enable Custom Object"), style = MaterialTheme.typography.bodyLarge)
+            Switch(checked = state.customMode, onCheckedChange = { viewModel.setCustomMode(it); viewModel.toast(if (it) t(lang, "已启用", "已啟用", "Enabled") else t(lang, "已停用", "已停用", "Disabled")) }, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primaryContainer))
+        }
+
+        if (state.customMode) {
+            Divider()
+            Text(t(lang, "选择视频或动图（MP4/GIF）", "選擇影片或動圖（MP4/GIF）", "Select video or GIF (MP4/GIF)"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(t(lang, "画质和音质不会被压缩", "畫質和音質不會被壓縮", "Quality is not compressed"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            Button(onClick = { mediaLauncher.launch("video/*") }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) {
+                Text(if (state.customMediaPath != null) t(lang, "已选择媒体 \u2713", "已選擇媒體 \u2713", "Media selected \u2713") else t(lang, "选择媒体文件", "選擇媒體檔案", "Select Media File"))
+            }
+
+            // Preview
+            if (state.customMediaPath != null) {
+                Card(Modifier.fillMaxWidth().height(200.dp), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.Black)) {
+                    AndroidView(factory = { ctx ->
+                        VideoView(ctx).apply {
+                            setVideoPath(state.customMediaPath)
+                            setOnPreparedListener { it.isLooping = true; it.setVolume(0f, 0f); start() }
+                        }
+                    }, modifier = Modifier.fillMaxSize())
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            Text(t(lang, "选择音效（MP3）", "選擇音效（MP3）", "Select sound (MP3)"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+
+            Button(onClick = { audioLauncher.launch("audio/*") }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) {
+                Text(if (state.customAudioPath != null) t(lang, "已选择音效 \u2713", "已選擇音效 \u2713", "Audio selected \u2713") else t(lang, "选择音效文件", "選擇音效檔案", "Select Audio File"))
+            }
+
+            // Test play
+            if (state.customAudioPath != null) {
+                OutlinedButton(onClick = { viewModel.playCustomAudio(state.soundVolume) }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
+                    Text(t(lang, "试听音效", "試聽音效", "Test Sound"))
+                }
+            }
+
+            // Clear
+            if (state.customMediaPath != null || state.customAudioPath != null) {
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = { viewModel.setCustomMedia(null); viewModel.setCustomAudio(null); viewModel.toast(t(lang, "已清除", "已清除", "Cleared")) }) {
+                    Text(t(lang, "清除所有自定义", "清除所有自訂", "Clear All Custom"), color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+    }
+}
+
+private fun copyUriToCache(context: android.content.Context, uri: Uri): String {
+    val name = "custom_${System.currentTimeMillis()}"
+    val file = java.io.File(context.cacheDir, name)
+    context.contentResolver.openInputStream(uri)?.use { it.copyTo(java.io.FileOutputStream(file)) }
+    return file.absolutePath
+}
+
 // ═══════════════ ABOUT ═══════════════
 @Composable private fun AboutPage(viewModel: WoodenFishViewModel, lang: String, context: android.content.Context) {
     val cc = viewModel.state.collectAsState().value.aboutClickCount
@@ -299,7 +383,7 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 1.1", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 1.2", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
