@@ -73,4 +73,8 @@ class PreferencesManager(context: Context) {
     fun setSoundVolume(v: Float) = p.edit().putFloat("sound_vol", v).apply()
     fun getVibrationIntensity() = p.getFloat("vib_intensity", 0.8f)
     fun setVibrationIntensity(v: Float) = p.edit().putFloat("vib_intensity", v).apply()
+
+    // ─── Interaction speed ───
+    fun getTapSpeed() = p.getFloat("tap_speed", 1.0f)
+    fun setTapSpeed(v: Float) = p.edit().putFloat("tap_speed", v).apply()
 }

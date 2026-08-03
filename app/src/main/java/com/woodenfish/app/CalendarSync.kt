@@ -56,16 +56,25 @@ object CalendarSync {
         try { cr.delete(Events.CONTENT_URI, "${Events._ID}=?", arrayOf(eventId.toString())) } catch (_: Exception) {}
     }
 
+    /** 是否存在可写的日历（用于区分"没有可用日历"和"写入失败"） */
+    fun hasWritableCalendar(context: Context): Boolean = findWritableCalendar(context.contentResolver) != null
+
     /** 找一个可写的日历（用户账号日历或本地日历） */
     private fun findWritableCalendar(cr: ContentResolver): Long? {
         val projection = arrayOf(Calendars._ID)
-        val selection = "${Calendars.CALENDAR_ACCESS_LEVEL} >= ${Calendars.CAL_ACCESS_CONTRIBUTOR}"
-        return try {
+        // 优先：可写日历
+        try {
+            val selection = "${Calendars.CALENDAR_ACCESS_LEVEL} >= ${Calendars.CAL_ACCESS_CONTRIBUTOR}"
             cr.query(Calendars.CONTENT_URI, projection, selection, null, null)?.use { c ->
-                if (c.moveToFirst()) c.getLong(0) else null
+                if (c.moveToFirst()) return c.getLong(0)
             }
-        } catch (_: Exception) {
-            null
-        }
+        } catch (_: Exception) {}
+        // 兜底：任意日历
+        try {
+            cr.query(Calendars.CONTENT_URI, projection, null, null, null)?.use { c ->
+                if (c.moveToFirst()) return c.getLong(0)
+            }
+        } catch (_: Exception) {}
+        return null
     }
 }

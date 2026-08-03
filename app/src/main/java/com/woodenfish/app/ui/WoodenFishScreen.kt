@@ -51,6 +51,18 @@ private val hourPresets = listOf(1, 2, 3, 6, 12)
 private val minPresets = listOf(15, 30, 45, 60, 120)
 private val dayPresets = listOf(1, 2, 3, 5, 7)
 
+private fun isPackageInstalled(context: android.content.Context, pkg: String): Boolean = try {
+    context.packageManager.getPackageInfo(pkg, 0); true
+} catch (_: Exception) { false }
+
+private fun openCalendarStore(context: android.content.Context) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.google.android.calendar")))
+    } catch (_: Exception) {
+        try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.calendar"))) } catch (_: Exception) {}
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
@@ -107,9 +119,9 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
                         CounterDisplay(state.todayCount, state.totalCount, lang)
                         Spacer(Modifier.height(32.dp))
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(240.dp)) {
-                            state.particles.forEach { PlusOneAnim(it) }
+                            state.particles.forEach { PlusOneAnim(it, state.tapSpeed) }
                             Box(Modifier.size(200.dp).clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { viewModel.onFishTap() }, contentAlignment = Alignment.Center) {
-                                FishCanvas(hammerOffset = state.hammerOffset, modifier = Modifier.size(190.dp))
+                                FishCanvas(hammerOffset = state.hammerOffset, speed = state.tapSpeed, modifier = Modifier.size(190.dp))
                             }
                         }
                     }
@@ -131,7 +143,7 @@ private fun SubPage(title: String, onBack: () -> Unit, content: @Composable () -
 
 // ═══════════════ FISH ═══════════════
 @Composable
-private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
+private fun FishCanvas(hammerOffset: Float, speed: Float, modifier: Modifier) {
     val scale = remember { Animatable(1f) }
     val wobble = remember { Animatable(0f) }
     val hammerAnim = remember { Animatable(0f) }
@@ -140,9 +152,9 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
             scale.snapTo(0.9f)
             wobble.snapTo(-4f)
             hammerAnim.snapTo(1f)
-            launch { scale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh)) }
-            launch { wobble.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium)) }
-            launch { hammerAnim.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium)) }
+            launch { scale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh * speed)) }
+            launch { wobble.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium * speed)) }
+            launch { hammerAnim.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium * speed)) }
         }
     }
     Canvas(modifier = modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value; rotationZ = wobble.value }) {
@@ -164,18 +176,19 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
     }
 }
 
-@Composable private fun PlusOneAnim(particle: PlusOneParticle) {
+@Composable private fun PlusOneAnim(particle: PlusOneParticle, speed: Float) {
     val color = PlusOneColors[particle.colorIndex % PlusOneColors.size]
     val aY = remember { Animatable(0f) }; val aA = remember { Animatable(0f) }; val aS = remember { Animatable(0.4f) }
-    val oX = when (particle.positionIndex) { 0 -> -60f; 2 -> 60f; else -> 0f }
+    val drift = ((particle.id % 5) - 2) * 6f
+    val travel = if (particle.dy < -80f) 30f else 50f
     LaunchedEffect(particle.id) {
-        launch { aY.animateTo(-180f, tween(950, easing = FastOutSlowInEasing)) }
-        launch { aA.animateTo(1f, tween(100)) }
-        launch { aS.animateTo(1.15f, tween(160, easing = FastOutSlowInEasing)); aS.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh)) }
-        kotlinx.coroutines.delay(650)
-        launch { aA.animateTo(0f, tween(350)) }
+        launch { aY.animateTo(-travel, tween((950 / speed).toInt(), easing = FastOutSlowInEasing)) }
+        launch { aA.animateTo(1f, tween((100 / speed).toInt())) }
+        launch { aS.animateTo(1.15f, tween((160 / speed).toInt(), easing = FastOutSlowInEasing)); aS.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh * speed)) }
+        kotlinx.coroutines.delay((650 / speed).toLong())
+        launch { aA.animateTo(0f, tween((350 / speed).toInt())) }
     }
-    Box(Modifier.offset(x = oX.dp, y = aY.value.dp).graphicsLayer { alpha = aA.value; scaleX = aS.value; scaleY = aS.value }) { Text("+1", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = color) }
+    Box(Modifier.offset(x = (particle.dx + drift).dp, y = (particle.dy + aY.value).dp).graphicsLayer { alpha = aA.value; scaleX = aS.value; scaleY = aS.value }) { Text("+1", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = color) }
 }
 
 @Composable private fun CounterDisplay(todayCount: Int, totalCount: Long, lang: String) {
@@ -208,10 +221,19 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
 // ═══════════════ NOTIFICATION SETTINGS ═══════════════
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable private fun NotifySettingsPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, context: android.content.Context) {
-    val calendarLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) {
+    val gcalInstalled = remember { isPackageInstalled(context, "com.google.android.calendar") }
+    var showGcalDialog by remember { mutableStateOf(false) }
+    val tryEnableFixedTime: (Boolean, () -> Unit) -> Unit = { installed, ask ->
+        if (installed) {
             if (viewModel.enableFixedTime()) viewModel.toast(t(lang, "已写入系统日历，由日历提醒", "已寫入系統日曆，由日曆提醒", "Saved to system calendar"))
             else viewModel.toast(t(lang, "写入日历失败，请检查系统日历", "寫入日曆失敗，請檢查系統日曆", "Failed to save to calendar"))
+        } else {
+            ask()
+        }
+    }
+    val calendarLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
+        if (grants[Manifest.permission.READ_CALENDAR] == true && grants[Manifest.permission.WRITE_CALENDAR] == true) {
+            tryEnableFixedTime(gcalInstalled) { showGcalDialog = true }
         } else {
             viewModel.toast(t(lang, "需要日历权限才能使用固定时间提醒", "需要日曆權限才能使用固定時間提醒", "Calendar permission required"))
         }
@@ -230,11 +252,12 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
                 ModeChip(t(lang, "随机时间", "隨機時間", "Random"), state.randomTime && !state.fixedTimeEnabled) { viewModel.selectRandomTime() }
                 ModeChip(t(lang, "自定义间隔", "自訂間隔", "Interval"), !state.randomTime && !state.fixedTimeEnabled) { viewModel.selectInterval() }
                 ModeChip(t(lang, "固定时间·日历", "固定時間·日曆", "Fixed (Calendar)"), state.fixedTimeEnabled) {
-                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED) {
-                        if (viewModel.enableFixedTime()) viewModel.toast(t(lang, "已写入系统日历，由日历提醒", "已寫入系統日曆，由日曆提醒", "Saved to system calendar"))
-                        else viewModel.toast(t(lang, "写入日历失败，请检查系统日历", "寫入日曆失敗，請檢查系統日曆", "Failed to save to calendar"))
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED
+                        && ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        tryEnableFixedTime(gcalInstalled) { showGcalDialog = true }
                     } else {
-                        calendarLauncher.launch(Manifest.permission.WRITE_CALENDAR)
+                        calendarLauncher.launch(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR))
                     }
                 }
             }
@@ -242,6 +265,12 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
                 state.fixedTimeEnabled -> {
                     TimeRow(t(lang, "每日时间", "每日時間", "Daily time"), state.fixedTimeMin, lang) { viewModel.updateFixedTimeMin(it) }
                     Text(t(lang, "提醒已写入系统日历（Google 日历需登录 Google 账号并开启同步），由日历 App 到点提醒，Doki 无需后台运行。可在日历中修改或删除。", "提醒已寫入系統日曆（Google 日曆需登入 Google 帳號並開啟同步），由日曆 App 到點提醒，Doki 無需後台運行。可在日曆中修改或刪除。", "Reminder saved to system calendar (Google Calendar needs a Google account with sync on). The calendar app alerts you; Doki runs nothing in background. Editable in calendar."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (!gcalInstalled) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(t(lang, "未检测到 Google 日历：仅本地提醒，无云端同步", "未偵測到 Google 日曆：僅本地提醒，無雲端同步", "Google Calendar not found: local reminder only, no cloud sync"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline, modifier = Modifier.weight(1f))
+                            TextButton(onClick = { openCalendarStore(context) }) { Text(t(lang, "去安装", "去安裝", "Install"), fontSize = 13.sp) }
+                        }
+                    }
                 }
                 state.randomTime -> {
                     Text(t(lang, "提醒时段（每天随机 3 个时间提醒）", "提醒時段（每天隨機 3 個時間提醒）", "Time range (3 random reminders daily)"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -257,6 +286,15 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
                 else -> { CustomInterval(state, viewModel, lang) }
             }
         }
+    }
+    if (showGcalDialog) {
+        AlertDialog(
+            onDismissRequest = { showGcalDialog = false },
+            title = { Text(t(lang, "未检测到 Google 日历", "未偵測到 Google 日曆", "Google Calendar not found")) },
+            text = { Text(t(lang, "Doki 仍会写入系统日历，手机自带日历可以正常提醒；但要同步到云端需要 Google 日历。要现在去安装吗？", "Doki 仍會寫入系統日曆，手機內建日曆可以正常提醒；但要同步到雲端需要 Google 日曆。要現在去安裝嗎？", "Doki will still save to the system calendar and your built-in calendar app will remind you. Cloud sync requires Google Calendar. Install it now?")) },
+            confirmButton = { TextButton(onClick = { showGcalDialog = false; openCalendarStore(context) }) { Text(t(lang, "安装 Google 日历", "安裝 Google 日曆", "Install Google Calendar")) } },
+            dismissButton = { TextButton(onClick = { showGcalDialog = false; if (viewModel.enableFixedTime()) viewModel.toast(t(lang, "已写入系统日历", "已寫入系統日曆", "Saved to system calendar")) else viewModel.toast(t(lang, "写入日历失败，请检查系统日历", "寫入日曆失敗，請檢查系統日曆", "Failed to save to calendar")) }) { Text(t(lang, "继续使用系统日历", "繼續使用系統日曆", "Use system calendar")) } }
+        )
     }
 }
 
@@ -363,6 +401,22 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
             Slider(value = 0f, onValueChange = {}, enabled = false, colors = SliderDefaults.colors(disabledThumbColor = MaterialTheme.colorScheme.outline, disabledActiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)))
             Text(t(lang, "您的设备不支持此功能", "您的設備不支援此功能", "Your device does not support this feature"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         }
+
+        Divider()
+        InteractionSpeedSection(state, viewModel, lang)
+    }
+}
+
+// ═══════════════ INTERACTION SPEED ═══════════════
+@Composable private fun InteractionSpeedSection(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(t(lang, "互动速度", "互動速度", "Interaction speed"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(0.5f, 0.75f, 1.0f, 1.25f).forEach { s ->
+                ModeChip(s.toString(), state.tapSpeed == s) { viewModel.setTapSpeed(s) }
+            }
+        }
+        Text(t(lang, "敲击动画与反馈的速度：0.5 慢速、1.0 默认、1.25 快速", "敲擊動畫與反饋的速度：0.5 慢速、1.0 預設、1.25 快速", "Speed of tap animations: 0.5 slow, 1.0 default, 1.25 fast"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
     }
 }
 
@@ -378,7 +432,7 @@ private fun FishCanvas(hammerOffset: Float, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 1.7", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 1.8", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)

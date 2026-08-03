@@ -24,8 +24,9 @@ import kotlin.random.Random
 import kotlin.math.exp
 import kotlin.math.sin
 import kotlin.math.PI
+import kotlin.math.cos
 
-data class PlusOneParticle(val id: Int, val colorIndex: Int, val positionIndex: Int)
+data class PlusOneParticle(val id: Int, val colorIndex: Int, val dx: Float, val dy: Float)
 
 data class WoodenFishState(
     val todayCount: Int = 0, val totalCount: Long = 0,
@@ -41,7 +42,7 @@ data class WoodenFishState(
     val themeColorIndex: Int = THEME_BROWN,
     val themeMode: com.woodenfish.app.ui.theme.ThemeMode = com.woodenfish.app.ui.theme.ThemeMode.SYSTEM,
     val language: String = "zh-CN",
-    val soundVolume: Float = 0.7f, val vibrationIntensity: Float = 0.8f,
+    val soundVolume: Float = 0.7f, val vibrationIntensity: Float = 0.8f, val tapSpeed: Float = 1.0f,
     val vibrationSupported: Boolean = true, val soundSupported: Boolean = true,
     val toastMessage: String? = null,
 )
@@ -73,7 +74,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
             fixedTimeEnabled = prefs.isFixedTimeEnabled(), fixedTimeMin = prefs.getFixedTimeMin(),
             showAgreement = !prefs.hasAgreedTerms(), themeColorIndex = prefs.getThemeColorIndex(),
             themeMode = prefs.getThemeMode(), language = prefs.getLanguage(),
-            soundVolume = prefs.getSoundVolume(), vibrationIntensity = prefs.getVibrationIntensity(),
+            soundVolume = prefs.getSoundVolume(), vibrationIntensity = prefs.getVibrationIntensity(), tapSpeed = prefs.getTapSpeed(),
             vibrationSupported = vibrator.hasVibrator(), soundSupported = true)
         setupSoundPool(application)
     }
@@ -140,13 +141,16 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
         vibrate((25 * vi).toLong().coerceAtLeast(1))
         playWoodSound(sv)
 
+        val spd = _state.value.tapSpeed
         _state.value = _state.value.copy(hammerOffset = 1f)
-        viewModelScope.launch { delay(150); _state.value = _state.value.copy(hammerOffset = 0f) }
+        viewModelScope.launch { delay((150 / spd).toLong()); _state.value = _state.value.copy(hammerOffset = 0f) }
 
-        val ci = Random.nextInt(com.woodenfish.app.ui.theme.PlusOneColors.size); val pi = Random.nextInt(3)
-        val p = PlusOneParticle(particleCounter++, ci, pi)
+        val ci = Random.nextInt(com.woodenfish.app.ui.theme.PlusOneColors.size)
+        val angle = Random.nextDouble(0.0, 2 * PI)
+        val radius = Random.nextDouble(105.0, 118.0)
+        val p = PlusOneParticle(particleCounter++, ci, (cos(angle) * radius).toFloat(), (sin(angle) * radius).toFloat())
         _state.value = _state.value.copy(todayCount = newCount, totalCount = totalCount, particles = _state.value.particles + p)
-        viewModelScope.launch { delay(1200); _state.value = _state.value.copy(particles = _state.value.particles.filter { it.id != p.id }) }
+        viewModelScope.launch { delay((1200 / spd).toLong()); _state.value = _state.value.copy(particles = _state.value.particles.filter { it.id != p.id }) }
         if (newCount == 1000 && !prefs.hasCelebratedToday()) { prefs.markCelebrated(); triggerCelebration() }
     }
 
@@ -218,6 +222,9 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
             notificationHelper.cancelAll()
             return true
         }
+        toast(if (CalendarSync.hasWritableCalendar(getApplication()))
+            if (_state.value.language == "en") "Failed to write calendar, check calendar permission" else if (_state.value.language == "zh-TW") "寫入日曆失敗，請檢查日曆權限" else "写入日历失败，请检查日历权限"
+            else if (_state.value.language == "en") "No usable calendar found, add an account first" else if (_state.value.language == "zh-TW") "系統沒有可用日曆，請先在系統日曆新增帳號" else "系统没有可用日历，请先在系统日历中添加账号")
         return false
     }
     fun updateFixedTimeMin(m: Int) {
@@ -237,6 +244,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     fun setLanguage(l: String) { prefs.setLanguage(l); _state.value = _state.value.copy(language = l) }
     fun setSoundVolume(v: Float) { prefs.setSoundVolume(v); _state.value = _state.value.copy(soundVolume = v) }
     fun setVibrationIntensity(v: Float) { prefs.setVibrationIntensity(v); _state.value = _state.value.copy(vibrationIntensity = v) }
+    fun setTapSpeed(v: Float) { prefs.setTapSpeed(v); _state.value = _state.value.copy(tapSpeed = v) }
     fun agreeToTerms() { prefs.setAgreedTerms(); _state.value = _state.value.copy(showAgreement = false) }
     fun showLegalPage(p: String) { _state.value = _state.value.copy(showLegalPage = p) }
     fun dismissLegalPage() { _state.value = _state.value.copy(showLegalPage = null) }
