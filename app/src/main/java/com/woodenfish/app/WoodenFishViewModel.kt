@@ -75,7 +75,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
             randomTime = prefs.isRandomTime(),
             notifyStart = prefs.getNotificationStartHour(),
             notifyEnd = prefs.getNotificationEndHour(),
-            showAgreement = !prefs.hasAgreedToTerms(),
+            showAgreement = !prefs.hasAgreedTerms(),
             themeColorIndex = prefs.getThemeColorIndex(),
             themeMode = prefs.getThemeMode(),
             language = prefs.getLanguage(),
