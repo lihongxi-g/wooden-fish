@@ -169,31 +169,44 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
         rotationZ = -4f * (1f - p)
     }) {
         val w = size.width; val h = size.height
-        // 地面阴影
-        drawOval(color = Color.Black.copy(alpha = 0.12f), topLeft = Offset(w * 0.37f, h * 0.8f), size = Size(w * 0.26f, h * 0.06f))
-        // 木鱼主体
-        drawOval(brush = Brush.verticalGradient(listOf(Color(0xFF9B572E), Color(0xFF7A3F1F)), startY = h * 0.2f, endY = h * 0.8f), topLeft = Offset(w * 0.15f, h * 0.2f), size = Size(w * 0.7f, h * 0.6f))
-        drawOval(color = Color(0xFF5C3018), topLeft = Offset(w * 0.15f, h * 0.2f), size = Size(w * 0.7f, h * 0.6f), style = Stroke(width = w * 0.012f))
-        // 顶部凸起
-        drawOval(brush = Brush.verticalGradient(listOf(Color(0xFFA96235), Color(0xFF8F4A22)), startY = h * 0.1f, endY = h * 0.37f), topLeft = Offset(w * 0.3f, h * 0.1f), size = Size(w * 0.4f, h * 0.27f))
-        drawOval(color = Color(0xFF5C3018), topLeft = Offset(w * 0.3f, h * 0.1f), size = Size(w * 0.4f, h * 0.27f), style = Stroke(width = w * 0.01f))
-        // 主体高光
-        drawOval(color = Color.White.copy(alpha = 0.15f), topLeft = Offset(w * 0.24f, h * 0.28f), size = Size(w * 0.14f, h * 0.13f))
-        // 敲击孔（共鸣孔）
-        drawOval(color = Color(0xFF3B1D0D), topLeft = Offset(w * 0.41f, h * 0.35f), size = Size(w * 0.18f, h * 0.23f))
-        drawOval(color = Color(0xFF241006), topLeft = Offset(w * 0.41f, h * 0.35f), size = Size(w * 0.18f, h * 0.23f), style = Stroke(width = w * 0.008f))
-        drawOval(color = Color(0xFF1E0E06), topLeft = Offset(w * 0.445f, h * 0.41f), size = Size(w * 0.11f, h * 0.16f))
-        drawArc(color = Color(0xFFC88C5A).copy(alpha = 0.7f), startAngle = 190f, sweepAngle = 160f, useCenter = false, topLeft = Offset(w * 0.41f, h * 0.35f), size = Size(w * 0.18f, h * 0.23f), style = Stroke(width = w * 0.008f))
-        // 木纹
-        drawArc(color = Color(0xFFC47A45), startAngle = 20f, sweepAngle = 130f, useCenter = false, topLeft = Offset(w * 0.21f, h * 0.25f), size = Size(w * 0.58f, h * 0.5f), style = Stroke(width = w * 0.008f))
-        drawArc(color = Color(0xFF713A1D), startAngle = 200f, sweepAngle = 140f, useCenter = false, topLeft = Offset(w * 0.25f, h * 0.3f), size = Size(w * 0.5f, h * 0.43f), style = Stroke(width = w * 0.005f))
-        // 底座
-        drawRoundRect(color = Color(0xFF633317), topLeft = Offset(w * 0.36f, h * 0.75f), size = Size(w * 0.28f, h * 0.13f), cornerRadius = CornerRadius(w * 0.01f))
-        drawRoundRect(color = Color(0xFF3B1C0C), topLeft = Offset(w * 0.36f, h * 0.75f), size = Size(w * 0.28f, h * 0.13f), cornerRadius = CornerRadius(w * 0.01f), style = Stroke(width = w * 0.01f))
-        drawLine(color = Color(0xFFA06437), start = Offset(w * 0.375f, h * 0.76f), end = Offset(w * 0.625f, h * 0.76f), strokeWidth = w * 0.006f)
-        // 木鱼槌（敲在共鸣孔上，动画由 tapAnim 单驱动，跟手）
-        val ha = (1f - tapAnim.value) * -30f
-        val px = w * 0.5f; val py = h * 0.08f
+        val p = tapAnim.value
+        val sink = (1f - p) * h * 0.02f // 点击下沉（3D 反馈）
+        // 地面阴影（多层柔化）
+        drawOval(color = Color(0xFF140801).copy(alpha = 0.16f), topLeft = Offset(w * 0.19f, h * 0.76f + sink), size = Size(w * 0.62f, h * 0.14f))
+        drawOval(color = Color(0xFF140801).copy(alpha = 0.10f), topLeft = Offset(w * 0.22f, h * 0.74f + sink), size = Size(w * 0.56f, h * 0.12f))
+        // 木鱼主体（垂直渐变：顶亮底暗，3D 立体感）
+        drawOval(brush = Brush.verticalGradient(listOf(Color(0xFFEC9A4E), Color(0xFF773816)), startY = h * 0.24f + sink, endY = h * 0.82f + sink), topLeft = Offset(w * 0.13f, h * 0.24f + sink), size = Size(w * 0.74f, h * 0.58f))
+        // 顶部高光（柔化）
+        drawOval(color = Color(0xFFFFCD80).copy(alpha = 0.28f), topLeft = Offset(w * 0.20f, h * 0.26f + sink), size = Size(w * 0.57f, h * 0.30f))
+        drawOval(color = Color(0xFFFFD28C).copy(alpha = 0.12f), topLeft = Offset(w * 0.22f, h * 0.28f + sink), size = Size(w * 0.53f, h * 0.25f))
+        // 底部暗部（立体感下半）
+        drawOval(color = Color(0xFF411B08).copy(alpha = 0.35f), topLeft = Offset(w * 0.18f, h * 0.54f + sink), size = Size(w * 0.64f, h * 0.27f))
+        // 顶部轮廓弧
+        drawArc(color = Color(0xFFFAAE5E).copy(alpha = 0.6f), startAngle = 195f, sweepAngle = 145f, useCenter = false, topLeft = Offset(w * 0.17f, h * 0.27f + sink), size = Size(w * 0.66f, h * 0.45f), style = Stroke(width = w * 0.008f))
+        // 开口（共鸣口，多边形深腔）
+        val opening = Path().apply {
+            moveTo(w * 0.24f, h * 0.60f + sink); lineTo(w * 0.32f, h * 0.53f + sink); lineTo(w * 0.73f, h * 0.46f + sink); lineTo(w * 0.77f, h * 0.50f + sink); lineTo(w * 0.71f, h * 0.57f + sink); lineTo(w * 0.36f, h * 0.69f + sink); lineTo(w * 0.27f, h * 0.71f + sink); close()
+        }
+        drawPath(opening, color = Color(0xFF371807))
+        val opening2 = Path().apply {
+            moveTo(w * 0.26f, h * 0.60f + sink); lineTo(w * 0.35f, h * 0.54f + sink); lineTo(w * 0.72f, h * 0.48f + sink); lineTo(w * 0.69f, h * 0.53f + sink); lineTo(w * 0.35f, h * 0.66f + sink); lineTo(w * 0.27f, h * 0.68f + sink); close()
+        }
+        drawPath(opening2, color = Color(0xFF4E2209))
+        // 开口上缘高光
+        drawLine(color = Color(0xFFEE9144).copy(alpha = 0.7f), start = Offset(w * 0.32f, h * 0.53f + sink), end = Offset(w * 0.73f, h * 0.46f + sink), strokeWidth = w * 0.005f)
+        drawLine(color = Color(0xFFEE9144).copy(alpha = 0.7f), start = Offset(w * 0.73f, h * 0.46f + sink), end = Offset(w * 0.77f, h * 0.50f + sink), strokeWidth = w * 0.005f)
+        // 木纹（4 条弧线）
+        drawArc(color = Color(0xFF743613).copy(alpha = 0.3f), startAngle = 195f, sweepAngle = 150f, useCenter = false, topLeft = Offset(w * 0.23f, h * 0.35f + sink), size = Size(w * 0.56f, h * 0.23f), style = Stroke(width = w * 0.003f))
+        drawArc(color = Color(0xFF743613).copy(alpha = 0.3f), startAngle = 195f, sweepAngle = 150f, useCenter = false, topLeft = Offset(w * 0.20f, h * 0.38f + sink), size = Size(w * 0.63f, h * 0.26f), style = Stroke(width = w * 0.003f))
+        drawArc(color = Color(0xFF743613).copy(alpha = 0.3f), startAngle = 195f, sweepAngle = 150f, useCenter = false, topLeft = Offset(w * 0.18f, h * 0.68f + sink), size = Size(w * 0.63f, h * 0.14f), style = Stroke(width = w * 0.003f))
+        drawArc(color = Color(0xFF743613).copy(alpha = 0.3f), startAngle = 195f, sweepAngle = 150f, useCenter = false, topLeft = Offset(w * 0.24f, h * 0.71f + sink), size = Size(w * 0.53f, h * 0.11f), style = Stroke(width = w * 0.003f))
+        // 左下轮廓高光
+        drawArc(color = Color(0xFFF7A658).copy(alpha = 0.4f), startAngle = 100f, sweepAngle = 110f, useCenter = false, topLeft = Offset(w * 0.13f, h * 0.25f + sink), size = Size(w * 0.75f, h * 0.57f), style = Stroke(width = w * 0.006f))
+        // 底部小阴影
+        drawOval(color = Color(0xFF4A1F09).copy(alpha = 0.35f), topLeft = Offset(w * 0.29f, h * 0.73f + sink), size = Size(w * 0.42f, h * 0.11f))
+        // 木鱼槌（敲在共鸣口上，动画单驱动，跟手）
+        val ha = (1f - p) * -30f
+        val px = w * 0.5f; val py = h * 0.08f + sink
         drawContext.canvas.save(); drawContext.canvas.translate(px, py); drawContext.canvas.rotate(ha); drawContext.canvas.translate(-px, -py)
         drawLine(color = Color(0xFF5D4037), start = Offset(px, py), end = Offset(px + w * 0.05f, py + h * 0.38f), strokeWidth = w * 0.015f)
         drawCircle(color = Color.Black.copy(alpha = 0.15f), radius = w * 0.07f, center = Offset(px + w * 0.05f + 2.dp.toPx(), py + h * 0.38f + 2.dp.toPx()))
@@ -522,7 +535,7 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 2.0.6", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 2.0.7", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
@@ -535,8 +548,8 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
                         } else {
                             android.app.AlertDialog.Builder(context)
                                 .setTitle("发现新版本 v${info.version}")
-                                .setMessage(t(lang, "是否下载更新？", "是否下載更新？", "Download update?"))
-                                .setPositiveButton(t(lang, "更新", "更新", "Update")) { _, _ -> viewModel.downloadAndInstall(context, info.apkUrl) }
+                                .setMessage(t(lang, "请前往 GitHub 下载更新。", "請前往 GitHub 下載更新。", "Please download the update from GitHub."))
+                                .setPositiveButton(t(lang, "去 GitHub", "去 GitHub", "Open GitHub")) { _, _ -> com.woodenfish.app.Updater.openReleases(context) }
                                 .setNegativeButton(t(lang, "稍后", "稍後", "Later"), null)
                                 .show()
                         }

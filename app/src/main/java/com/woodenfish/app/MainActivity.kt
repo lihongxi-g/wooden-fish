@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -58,7 +57,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            // 启动 3 秒后自动检查更新
+            // 启动 3 秒后自动检查更新（仅提示跳转 GitHub，不下载）
             androidx.compose.runtime.LaunchedEffect(Unit) {
                 kotlinx.coroutines.delay(3000)
                 Updater.checkForUpdate(this@MainActivity) { info ->
@@ -66,8 +65,8 @@ class MainActivity : ComponentActivity() {
                         runOnUiThread {
                             android.app.AlertDialog.Builder(this@MainActivity)
                                 .setTitle("发现新版本 v${info.version}")
-                                .setMessage("当前版本 v${currentVersion()}，是否下载更新？")
-                                .setPositiveButton("更新") { _, _ -> downloadAndInstall(info.apkUrl) }
+                                .setMessage("当前版本 v${currentVersion()}，请前往 GitHub 下载更新。")
+                                .setPositiveButton("去 GitHub") { _, _ -> Updater.openReleases(this@MainActivity) }
                                 .setNegativeButton("稍后", null)
                                 .show()
                         }
@@ -80,23 +79,6 @@ class MainActivity : ComponentActivity() {
 
     private fun currentVersion(): String =
         try { packageManager.getPackageInfo(packageName, 0).versionName } catch (_: Exception) { "?" }
-
-    private fun downloadAndInstall(url: String) {
-        Toast.makeText(this, "正在下载更新...", Toast.LENGTH_SHORT).show()
-        Updater.downloadApk(this, url, onProgress = {}, onResult = { file ->
-            runOnUiThread {
-                try {
-                    if (file != null) {
-                        Toast.makeText(this, "下载完成，请确认安装", Toast.LENGTH_SHORT).show()
-                        Updater.install(this, file)
-                    } else {
-                        Toast.makeText(this, "下载失败，请稍后重试", Toast.LENGTH_SHORT).show()
-                    }
-                } catch (_: Exception) {
-                }
-            }
-        })
-    }
 
     /** 官方签名 SHA-256（固定 keystore 证书指纹） */
     private fun isOfficialSignature(): Boolean {

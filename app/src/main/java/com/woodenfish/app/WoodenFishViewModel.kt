@@ -252,22 +252,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     fun setSoundVolume(v: Float) { prefs.setSoundVolume(v); _state.value = _state.value.copy(soundVolume = v) }
     fun setVibrationIntensity(v: Float) { prefs.setVibrationIntensity(v); _state.value = _state.value.copy(vibrationIntensity = v) }
     fun setTapSpeed(v: Float) { prefs.setTapSpeed(v); _state.value = _state.value.copy(tapSpeed = v) }
-    fun downloadAndInstall(context: android.content.Context, url: String) {
-        toast(if (_state.value.language == "en") "Downloading update..." else if (_state.value.language == "zh-TW") "正在下載更新..." else "正在下载更新...")
-        Updater.downloadApk(context, url, onProgress = {}, onResult = { file ->
-            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                try {
-                    if (file != null) {
-                        toast(if (_state.value.language == "en") "Download complete" else if (_state.value.language == "zh-TW") "下載完成" else "下载完成")
-                        Updater.install(context, file)
-                    } else {
-                        toast(if (_state.value.language == "en") "Download failed" else if (_state.value.language == "zh-TW") "下載失敗" else "下载失败")
-                    }
-                } catch (_: Exception) {
-                }
-            }
-        })
-    }
+
     fun agreeToTerms() { prefs.setAgreedTerms(); _state.value = _state.value.copy(showAgreement = false) }
     fun showLegalPage(p: String) { _state.value = _state.value.copy(showLegalPage = p) }
     fun dismissLegalPage() { _state.value = _state.value.copy(showLegalPage = null) }
