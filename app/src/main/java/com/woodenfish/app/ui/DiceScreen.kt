@@ -114,7 +114,7 @@ private fun DiceRoller(state: WoodenFishState, viewModel: WoodenFishViewModel, l
                 var interval = 90
                 repeat(20) { i ->
                     if (i < 20 - 1) face = Random.nextInt(6) + 1 else face = state.diceResult
-                    delay(interval)
+                    delay(interval.toLong())
                     interval = when {
                         i < 6 -> interval - 8                    // 加速
                         i < 15 -> 38                             // 高速滚动
@@ -182,6 +182,7 @@ private fun DiceFace(face: Int) {
 }
 
 // ═══════════════ 触发模式设置页（抽签模式 / 掷骰模式共用） ═══════════════
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TriggerModePage(
     title: String,
