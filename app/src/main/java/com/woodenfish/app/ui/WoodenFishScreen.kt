@@ -117,6 +117,7 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
             "fortune-mode" -> { SubPage(t(lang, "抽签模式", "抽籤模式", "Draw Mode", "Mode tirage", "Режим гадания", "Modo de sortilegio"), onBack = { page = "settings" }) { TriggerModePage(title = "", current = state.fortuneTriggerMode, onSelect = { viewModel.setFortuneTriggerMode(it) }, tapLabel = t(lang, "点按抽签", "點按抽籤", "Tap to draw", "Toucher", "По нажатию", "Tocar"), shakeLabel = t(lang, "摇一摇抽签", "搖一搖抽籤", "Shake to draw", "Secouer", "Встряской", "Agitar"), desc = t(lang, "点按抽签：点击签筒即可抽签。摇一摇抽签：晃动手机抽签，摇晃时手机会模拟签筒内竹签碰撞的震动反馈。", "點按抽籤：點擊籤筒即可抽籤。搖一搖抽籤：晃動手機抽籤，搖晃時手機會模擬籤筒內竹籤碰撞的震動回饋。", "Tap mode: tap the tube to draw. Shake mode: shake your phone to draw — the phone vibrates like sticks rattling in the tube.", "Mode toucher : touchez le tube. Mode secouer : secouez le téléphone — il vibre comme des baguettes qui s'entrechoquent.", "По нажатию: нажмите на стаканчик. Встряской: встряхните телефон — вибрация имитирует стук палочек.", "Modo tocar: toca el tubo. Modo agitar: agita el teléfono — vibra como palitos chocando en el tubo.")) }; return@WoodenFishTheme }
             "dice-mode" -> { SubPage(t(lang, "掷骰模式", "擲骰模式", "Dice Mode", "Mode dé", "Режим кости", "Modo de dado"), onBack = { page = "settings" }) { TriggerModePage(title = "", current = state.diceTriggerMode, onSelect = { viewModel.setDiceTriggerMode(it) }, tapLabel = t(lang, "点按掷骰", "點按擲骰", "Tap to roll", "Toucher", "По нажатию", "Tocar"), shakeLabel = t(lang, "摇一摇掷骰", "搖一搖擲骰", "Shake to roll", "Secouer", "Встряской", "Agitar"), desc = t(lang, "两种模式掷骰时都会模拟骰子在桌面连续弹跳、力度逐渐衰减的震动效果。", "兩種模式擲骰時都會模擬骰子在桌面連續彈跳、力度逐漸衰減的震動效果。", "Both modes simulate the die bouncing across the table with fading vibration.", "Les deux modes simulent les rebonds du dé sur la table avec une vibration qui s'estompe.", "Оба режима имитируют подпрыгивание кости по столу с затухающей вибрацией.", "Ambos modos simulan los rebotes del dado sobre la mesa con vibración decreciente.")) }; return@WoodenFishTheme }
             "dice-settings" -> { SubPage(t(lang, "骰子设置", "骰子設置", "Dice Settings", "Réglages du dé", "Настройки кости", "Ajustes del dado"), onBack = { page = "settings" }) { DiceSettingsPage(state, viewModel, lang) }; return@WoodenFishTheme }
+            "spinner-settings" -> { SubPage(t(lang, "转盘设置", "轉盤設置", "Spinner Settings", "Réglages de la roue", "Настройки колеса", "Ajustes de la rueda"), onBack = { page = "settings" }) { SpinnerSettingsPage(state, viewModel, lang) }; return@WoodenFishTheme }
         }
 
         // Main
@@ -132,6 +133,7 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
                         when (mode) {
                             1 -> FortuneScreen(state, viewModel, lang)
                             2 -> DiceScreen(state, viewModel, lang)
+                            3 -> SpinnerScreen(state, viewModel, lang)
                             else -> Box(Modifier.fillMaxSize()) {
                                 Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                     CounterDisplay(state.todayCount, state.totalCount, lang)
@@ -149,7 +151,7 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
                             }
                         }
                     }
-                    // 底部切换箭头：左 ◀ 上一个模式，右 ▶ 下一个模式（木鱼 ⇄ 抽签 ⇄ 骰子 循环）
+                    // 底部切换箭头：左 ◀ 上一个模式，右 ▶ 下一个模式（木鱼 ⇄ 抽签 ⇄ 骰子 ⇄ 转盘 循环）
                     Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         SwitchArrow(icon = "\u25C0") { viewModel.switchMode(-1) }
                         SwitchArrow(icon = "\u25B6") { viewModel.switchMode(+1) }
@@ -299,6 +301,7 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
         SettingItem(t(lang, "抽签模式", "抽籤模式", "Draw Mode", "Mode tirage", "Режим гадания", "Modo de sortilegio"), "fortune-mode", onOpen)
         SettingItem(t(lang, "掷骰模式", "擲骰模式", "Dice Mode", "Mode dé", "Режим кости", "Modo de dado"), "dice-mode", onOpen)
         SettingItem(t(lang, "骰子设置", "骰子設置", "Dice Settings", "Réglages du dé", "Настройки кости", "Ajustes del dado"), "dice-settings", onOpen)
+        SettingItem(t(lang, "转盘设置", "轉盤設置", "Spinner Settings", "Réglages de la roue", "Настройки колеса", "Ajustes de la rueda"), "spinner-settings", onOpen)
     }
 }
 @Composable private fun SettingItem(label: String, target: String, onOpen: (String) -> Unit) {

@@ -46,7 +46,7 @@ data class WoodenFishState(
     val vibrationSupported: Boolean = true, val soundSupported: Boolean = true,
     val toastMessage: String? = null,
     val selectedCalendarName: String? = null,
-    // 主模式：0=木鱼 1=签筒抽签 2=骰子
+    // 主模式：0=木鱼 1=签筒抽签 2=骰子 3=转盘
     val mode: Int = 0,
     // 求签：phase 0=静置 1=摇晃 2=签弹出 3=已翻面
     val fortunePhase: Int = 0,
@@ -61,6 +61,12 @@ data class WoodenFishState(
     val diceResult: Int = 5,                  // 本次结果
     val diceRolling: Boolean = false,
     val diceTick: Int = 0,
+    // 转盘
+    val spinnerSegments: List<SpinnerSegment> = defaultSegments(),
+    val spinnerAngle: Float = 0f,        // 当前旋转角度
+    val spinnerSpinning: Boolean = false,
+    val spinnerResult: Int = -1,         // -1=未转 0..n-1=结果分区
+    val spinnerTick: Int = 0,
 )
 
 class WoodenFishViewModel(application: Application) : AndroidViewModel(application) {
@@ -109,7 +115,8 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
             vibrationSupported = vibrator.hasVibrator(), soundSupported = true,
             selectedCalendarName = prefs.getSelectedCalendarName(),
             fortuneTriggerMode = prefs.getFortuneTriggerMode(), diceTriggerMode = prefs.getDiceTriggerMode(),
-            diceWeights = prefs.getDiceWeights(), diceLabels = prefs.getDiceLabels())
+            diceWeights = prefs.getDiceWeights(), diceLabels = prefs.getDiceLabels(),
+            spinnerSegments = prefs.getSpinnerSegments())
         setupSoundPool(application)
         // 摇一摇传感器：仅当当前模式+触发方式需要时开启（updateShakeListener 会按需 start/stop）
         shakeDetector = ShakeDetector(application) { onShakeDetected() }
@@ -244,14 +251,14 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     fun toast(msg: String) { _state.value = _state.value.copy(toastMessage = msg) }
     fun clearToast() { _state.value = _state.value.copy(toastMessage = null) }
 
-    // ─── 模式切换（0=木鱼 1=签筒 2=骰子，左右箭头循环）───
+    // ─── 模式切换（0=木鱼 1=签筒 2=骰子 3=转盘，左右箭头循环）───
     fun switchMode(delta: Int) {
-        val newMode = ((_state.value.mode + delta) % 3 + 3) % 3
+        val newMode = ((_state.value.mode + delta) % 4 + 4) % 4
         _state.value = _state.value.copy(
             mode = newMode,
             fortunePhase = 0, fortuneStick = null,
             fortuneTick = _state.value.fortuneTick + 1,
-            diceRolling = false
+            diceRolling = false, spinnerSpinning = false
         )
         updateShakeListener()
     }
@@ -332,6 +339,67 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     fun resetDiceSettings() {
         prefs.resetDiceSettings()
         _state.value = _state.value.copy(diceWeights = prefs.getDiceWeights(), diceLabels = prefs.getDiceLabels())
+    }
+
+    // ─── 转盘 ───
+    /** 转动转盘：按权重选结果分区，目标角度 = 指针停在该分区中心（多圈+定位），动画由 UI 层驱动 */
+    fun spinSpinner() {
+        if (_state.value.spinnerSpinning) return
+        val segs = _state.value.spinnerSegments
+        if (segs.isEmpty()) return
+        val total = segs.sumOf { it.weight.coerceAtLeast(0) }.coerceAtLeast(1)
+        var r = Random.nextInt(total)
+        var idx = 0
+        for (i in segs.indices) {
+            r -= segs[i].weight.coerceAtLeast(0)
+            if (r < 0) { idx = i; break }
+        }
+        // 目标角度：指针在顶部（-90°），分区 i 中心角 = (i+0.5)*360/N（从右侧顺时针）
+        val n = segs.size
+        val center = (idx + 0.5f) * (360f / n)
+        val current = _state.value.spinnerAngle
+        val delta = ((270f - ((center + current) % 360f)) % 360f + 360f) % 360f
+        val target = current + 5 * 360f + delta
+        vibrate(30)
+        _state.value = _state.value.copy(
+            spinnerSpinning = true, spinnerResult = idx, spinnerTick = _state.value.spinnerTick + 1,
+            spinnerAngle = target
+        )
+        viewModelScope.launch {
+            delay(3600)
+            _state.value = _state.value.copy(spinnerSpinning = false)
+        }
+    }
+
+    fun addSpinnerSegment() {
+        val segs = _state.value.spinnerSegments
+        if (segs.size >= 8) return
+        val newList = segs + SpinnerSegment("", 1)
+        prefs.setSpinnerSegments(newList)
+        _state.value = _state.value.copy(spinnerSegments = newList, spinnerResult = -1)
+    }
+
+    fun removeSpinnerSegment(i: Int) {
+        val segs = _state.value.spinnerSegments
+        if (segs.size <= 2) return
+        val newList = segs.filterIndexed { idx, _ -> idx != i }
+        prefs.setSpinnerSegments(newList)
+        _state.value = _state.value.copy(spinnerSegments = newList, spinnerResult = -1)
+    }
+
+    fun updateSpinnerSegment(i: Int, name: String? = null, weight: Int? = null) {
+        val segs = _state.value.spinnerSegments
+        if (i !in segs.indices) return
+        val newList = segs.mapIndexed { idx, s ->
+            if (idx == i) SpinnerSegment(name ?: s.name, weight ?: s.weight) else s
+        }
+        prefs.setSpinnerSegments(newList)
+        _state.value = _state.value.copy(spinnerSegments = newList, spinnerResult = -1)
+    }
+
+    fun resetSpinner() {
+        prefs.setSpinnerSegments(defaultSegments())
+        _state.value = _state.value.copy(spinnerSegments = defaultSegments(), spinnerResult = -1, spinnerAngle = 0f)
     }
 
     // ─── 细化震动 ───

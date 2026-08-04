@@ -108,4 +108,8 @@ class PreferencesManager(context: Context) {
         for (i in 1..6) { e.putInt("dice_weight_$i", 1); e.putString("dice_label_$i", "") }
         e.apply()
     }
+
+    // ─── Spinner segments ───
+    fun getSpinnerSegments(): List<SpinnerSegment> = p.getString("spinner_segments", null).parseSegments(defaultSegments())
+    fun setSpinnerSegments(segments: List<SpinnerSegment>) = p.edit().putString("spinner_segments", segments.toJson()).apply()
 }
