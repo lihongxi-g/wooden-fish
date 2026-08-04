@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-"""Doki 字体子集化：从项目 Kotlin 源码提取用到的字符，裁剪两个开源字体。
-瘦金体（马善政楷书 Ma Shan Zheng，OFL 许可）→ res/font/shoujin.ttf
+"""Doki 字体子集化：从项目 Kotlin 源码提取用到的字符，裁剪开源楷书字体。
 楷书（霞鹜文楷 LXGW WenKai，OFL 许可）→ res/font/kaiti.ttf
 字体来源：
-  https://github.com/google/fonts/raw/main/ofl/mashanzheng/MaShanZheng-Regular.ttf
   https://github.com/lxgw/LxgwWenKai/releases/download/v1.520/LXGWWenKai-Regular.ttf
 重新生成：python3 scripts/subset_fonts.py
 """
@@ -52,11 +50,9 @@ import fontTools.ttLib
 if __name__ == "__main__":
     chars = collect_chars()
     print(f"字符集: {len(chars)} 字符")
-    run("/tmp/fonts/MaShanZheng.ttf", "shoujin.ttf", chars)
     run("/tmp/fonts/LXGWWenKai.ttf", "kaiti.ttf", chars)
     # 校验关键字符
     from fontTools.ttLib import TTFont
-    for name in ("shoujin.ttf", "kaiti.ttf"):
-        cmap = set(TTFont(os.path.join(OUT, name)).getBestCmap())
-        missing = [c for c in "上上籤雲龍風馬門見上下中Great Fortune" if ord(c) in cmap]
-        print(f"{name} 关键字符覆盖: {len(missing)}/26")
+    cmap = set(TTFont(os.path.join(OUT, "kaiti.ttf")).getBestCmap())
+    missing = [c for c in "上上籤雲龍風馬門見上下中Great Fortune" if ord(c) not in cmap]
+    print(f"kaiti.ttf 缺失字符: {missing if missing else '无'}")

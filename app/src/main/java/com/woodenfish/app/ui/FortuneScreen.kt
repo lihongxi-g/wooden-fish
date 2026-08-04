@@ -36,13 +36,11 @@ import com.woodenfish.app.WoodenFishViewModel
 import kotlin.math.PI
 import kotlin.math.sin
 
-// 金色（瘦金体等级大字用）
-val GoldBrush = Brush.linearGradient(listOf(Color(0xFFF9D976), Color(0xFFD4AF37), Color(0xFFB8860B)))
-val GoldColor = Color(0xFFD4AF37)
-
-// 字体：瘦金体（等级大字）/ 楷书（签诗）
-val ShouJinFont = FontFamily(Font(com.woodenfish.app.R.font.shoujin))
+// 字体：楷书（签面所有文字统一用，纯黑，古代风格）
 val KaiTiFont = FontFamily(Font(com.woodenfish.app.R.font.kaiti))
+
+// 签面文字颜色：纯黑（木签米黄底上对比清晰，古代木刻感）
+val InkBlack = Color(0xFF1A1A1A)
 
 private fun t(lang: String, zhCN: String, zhTW: String, en: String) = when (lang) { "zh-TW" -> zhTW; "en" -> en; else -> zhCN }
 
@@ -52,7 +50,7 @@ fun FortuneScreen(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: 
     val phase = state.fortunePhase
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         // 标题
-        Text(t(lang, "求籤", "求籤", "Fortune"), style = MaterialTheme.typography.headlineLarge.copy(fontSize = 42.sp), fontFamily = ShouJinFont, color = GoldColor)
+        Text(t(lang, "求籤", "求籤", "Fortune"), style = MaterialTheme.typography.headlineLarge.copy(fontSize = 42.sp), fontFamily = KaiTiFont, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.height(4.dp))
         Text(t(lang, "誠心所念，必有迴響", "誠心所念，必有迴響", "Ask with a sincere heart"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(28.dp))
@@ -212,22 +210,23 @@ private fun DrawnStick(stick: FortuneStick, phase: Int, tick: Int, lang: String,
     }
 }
 
-/** 签正面：等级大字（瘦金体金色） */
+/** 签正面：等级大字（纯黑楷书，古代木刻风格） */
 @Composable
 private fun FrontFace(lang: String, stick: FortuneStick) {
     val core = when (lang) { "en" -> FortuneData.levelCoreEN[stick.level]; "zh-TW" -> FortuneData.levelCoreTW[stick.level]; else -> FortuneData.levelCoreCN[stick.level] }
     if (lang == "en") {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text(core.split(" ")[0], style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp), fontFamily = ShouJinFont, color = GoldColor, textAlign = TextAlign.Center)
-            Text(core.split(" ").getOrElse(1) { "" }, style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp), fontFamily = ShouJinFont, color = GoldColor, textAlign = TextAlign.Center)
+            core.split(" ").forEach { word ->
+                Text(word, style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp), fontFamily = KaiTiFont, color = InkBlack, textAlign = TextAlign.Center)
+            }
         }
     } else {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             core.forEach { ch ->
-                Text(ch.toString(), style = MaterialTheme.typography.headlineLarge.copy(fontSize = 34.sp), fontFamily = ShouJinFont, color = GoldColor)
+                Text(ch.toString(), style = MaterialTheme.typography.headlineLarge.copy(fontSize = 34.sp), fontFamily = KaiTiFont, color = InkBlack)
             }
-            Spacer(Modifier.height(6.dp))
-            Text(t(lang, "籤", "籤", ""), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp), fontFamily = KaiTiFont, color = Color(0xFF7A4A1D))
+            Spacer(Modifier.height(4.dp))
+            Text(t(lang, "籤", "籤", ""), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp), fontFamily = KaiTiFont, color = InkBlack)
         }
     }
 }
@@ -239,7 +238,7 @@ private fun BackFace(lang: String, stick: FortuneStick, mirror: Modifier) {
         Column(Modifier.padding(horizontal = 6.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             if (lang == "en") {
                 stick.poemEN.split("\n").forEach { line ->
-                    Text(line, style = MaterialTheme.typography.bodySmall.copy(fontSize = 8.sp, lineHeight = 11.sp), color = Color(0xFF4A2A12), textAlign = TextAlign.Center)
+                    Text(line, style = MaterialTheme.typography.bodySmall.copy(fontSize = 8.sp, lineHeight = 11.sp), color = InkBlack, textAlign = TextAlign.Center)
                 }
             } else {
                 // 竖排四句
@@ -247,7 +246,7 @@ private fun BackFace(lang: String, stick: FortuneStick, mirror: Modifier) {
                     stick.poemTW.split("\n").forEach { line ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             line.forEach { ch ->
-                                Text(ch.toString(), style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp), fontFamily = KaiTiFont, color = Color(0xFF4A2A12))
+                                Text(ch.toString(), style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp), fontFamily = KaiTiFont, color = InkBlack)
                             }
                         }
                     }
@@ -256,7 +255,7 @@ private fun BackFace(lang: String, stick: FortuneStick, mirror: Modifier) {
             Spacer(Modifier.height(6.dp))
             Text("— " + t(lang, FortuneData.meaningCN[stick.level], FortuneData.meaningTW[stick.level], FortuneData.meaningEN[stick.level]) + " —",
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 8.sp, lineHeight = 11.sp),
-                fontFamily = KaiTiFont, color = Color(0xFF8B4513), textAlign = TextAlign.Center)
+                fontFamily = KaiTiFont, color = InkBlack, textAlign = TextAlign.Center)
         }
     }
 }
