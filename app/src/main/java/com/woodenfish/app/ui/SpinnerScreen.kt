@@ -115,9 +115,9 @@ private fun SpinnerWheel(state: WoodenFishState, viewModel: WoodenFishViewModel,
             val sweep = 360f / n
             segs.forEachIndexed { i, seg ->
                 val start = i * sweep
-                val color = segmentColors[i % segmentColors.size]
+                val segColor = segmentColors[i % segmentColors.size]
                 drawArc(
-                    color = color,
+                    color = segColor,
                     startAngle = start + 0.6f, sweepAngle = sweep - 1.2f, useCenter = true,
                     topLeft = Offset(cx - r, cy - r), size = Size(r * 2, r * 2)
                 )
