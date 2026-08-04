@@ -46,11 +46,21 @@ data class WoodenFishState(
     val vibrationSupported: Boolean = true, val soundSupported: Boolean = true,
     val toastMessage: String? = null,
     val selectedCalendarName: String? = null,
-    // 求签：false=木鱼模式 true=签筒模式；phase 0=静置 1=摇晃 2=签弹出 3=已翻面
-    val fortuneMode: Boolean = false,
+    // 主模式：0=木鱼 1=签筒抽签 2=骰子
+    val mode: Int = 0,
+    // 求签：phase 0=静置 1=摇晃 2=签弹出 3=已翻面
     val fortunePhase: Int = 0,
     val fortuneStick: FortuneStick? = null,
     val fortuneTick: Int = 0,
+    val fortuneTriggerMode: String = "tap",   // "tap" 点按 / "shake" 摇一摇
+    // 骰子
+    val diceTriggerMode: String = "tap",      // "tap" / "shake"
+    val diceWeights: List<Int> = listOf(1, 1, 1, 1, 1, 1),
+    val diceLabels: List<String> = listOf("", "", "", "", "", ""),
+    val diceFace: Int = 5,                    // 当前显示面
+    val diceResult: Int = 5,                  // 本次结果
+    val diceRolling: Boolean = false,
+    val diceTick: Int = 0,
 )
 
 class WoodenFishViewModel(application: Application) : AndroidViewModel(application) {
@@ -62,11 +72,25 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     private var particleCounter = 0
     private var celebrationJob: Job? = null
     private var lastVibrateTime = 0L
+    private var shakeDetector: ShakeDetector? = null
 
     // 常驻 SoundPool：音效预加载，敲击即时播放（低延迟、快速连敲可叠加）
     private var soundPool: SoundPool? = null
     private var woodSoundId = 0
     @Volatile private var soundLoaded = false
+
+    /** 自动跟随系统语言：用户手动设置过则优先，否则按系统 Locale 映射 */
+    private fun detectSystemLanguage(): String {
+        val l = java.util.Locale.getDefault()
+        return when (l.language) {
+            "zh" -> if (l.script == "Hant" || l.country == "TW" || l.country == "HK" || l.country == "MO") "zh-TW" else "zh-CN"
+            "en" -> "en"
+            "fr" -> "fr"
+            "ru" -> "ru"
+            "es" -> "es"
+            else -> "en"
+        }
+    }
 
     init {
         vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
@@ -80,11 +104,31 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
             notifyStartMin = prefs.getNotificationStartMin(), notifyEndMin = prefs.getNotificationEndMin(),
             fixedTimeEnabled = prefs.isFixedTimeEnabled(), fixedTimeMin = prefs.getFixedTimeMin(),
             showAgreement = !prefs.hasAgreedTerms(), themeColorIndex = prefs.getThemeColorIndex(),
-            themeMode = prefs.getThemeMode(), language = prefs.getLanguage(),
+            themeMode = prefs.getThemeMode(), language = prefs.getLanguage() ?: detectSystemLanguage(),
             soundVolume = prefs.getSoundVolume(), vibrationIntensity = prefs.getVibrationIntensity(), tapSpeed = prefs.getTapSpeed(),
             vibrationSupported = vibrator.hasVibrator(), soundSupported = true,
-            selectedCalendarName = prefs.getSelectedCalendarName())
+            selectedCalendarName = prefs.getSelectedCalendarName(),
+            fortuneTriggerMode = prefs.getFortuneTriggerMode(), diceTriggerMode = prefs.getDiceTriggerMode(),
+            diceWeights = prefs.getDiceWeights(), diceLabels = prefs.getDiceLabels())
         setupSoundPool(application)
+        // 摇一摇传感器：仅当当前模式+触发方式需要时开启（updateShakeListener 会按需 start/stop）
+        shakeDetector = ShakeDetector(application) { onShakeDetected() }
+    }
+
+    /** 传感器回调（工作线程）：按当前模式和触发方式分发到抽签 / 掷骰 */
+    private fun onShakeDetected() {
+        val s = _state.value
+        when {
+            s.mode == 1 && s.fortuneTriggerMode == "shake" && s.fortunePhase == 0 -> tapFortuneTube()
+            s.mode == 2 && s.diceTriggerMode == "shake" && !s.diceRolling -> rollDice()
+        }
+    }
+
+    /** 按需开关摇一摇监听：只有"当前模式用摇一摇触发"时才耗电 */
+    private fun updateShakeListener() {
+        val s = _state.value
+        val needShake = (s.mode == 1 && s.fortuneTriggerMode == "shake") || (s.mode == 2 && s.diceTriggerMode == "shake")
+        if (needShake) shakeDetector?.start() else shakeDetector?.stop()
     }
 
     private fun setupSoundPool(context: Application) {
@@ -200,21 +244,25 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     fun toast(msg: String) { _state.value = _state.value.copy(toastMessage = msg) }
     fun clearToast() { _state.value = _state.value.copy(toastMessage = null) }
 
-    // ─── 求签 ───
-    /** 切换木鱼 / 签筒模式 */
-    fun switchMode() {
+    // ─── 模式切换（0=木鱼 1=签筒 2=骰子，左右箭头循环）───
+    fun switchMode(delta: Int) {
+        val newMode = ((_state.value.mode + delta) % 3 + 3) % 3
         _state.value = _state.value.copy(
-            fortuneMode = !_state.value.fortuneMode,
+            mode = newMode,
             fortunePhase = 0, fortuneStick = null,
-            fortuneTick = _state.value.fortuneTick + 1
+            fortuneTick = _state.value.fortuneTick + 1,
+            diceRolling = false
         )
+        updateShakeListener()
     }
 
-    /** 点击签筒：开始摇晃，1.4s 后弹出木签 */
+    /** 点击签筒（点按模式）或摇一摇（shake 模式）触发：摇晃 1.4s 后弹出木签 */
     fun tapFortuneTube() {
         if (_state.value.fortunePhase != 0) return
         val stick = FortuneData.draw()
         _state.value = _state.value.copy(fortunePhase = 1, fortuneStick = stick, fortuneTick = _state.value.fortuneTick + 1)
+        // 摇一摇模式：摇晃期间模拟签筒内签碰撞的连续震动
+        if (_state.value.fortuneTriggerMode == "shake") vibrateShakeTube()
         viewModelScope.launch {
             delay(1400)
             if (_state.value.fortunePhase == 1) {
@@ -235,6 +283,78 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     /** 再抽一签：回到静置 */
     fun resetFortune() {
         _state.value = _state.value.copy(fortunePhase = 0, fortuneStick = null, fortuneTick = _state.value.fortuneTick + 1)
+    }
+
+    // ─── 掷骰子 ───
+    /** 掷骰：按权重随机结果，播放桌面弹跳震动；动画由 UI 层根据 diceTick 驱动 */
+    fun rollDice() {
+        if (_state.value.diceRolling) return
+        val weights = _state.value.diceWeights
+        val total = weights.sum().coerceAtLeast(1)
+        var r = Random.nextInt(total)
+        var face = 1
+        for (i in 0 until 6) {
+            r -= weights[i].coerceAtLeast(0)
+            if (r < 0) { face = i + 1; break }
+        }
+        vibrateDiceBounce()
+        _state.value = _state.value.copy(diceRolling = true, diceResult = face, diceTick = _state.value.diceTick + 1)
+        viewModelScope.launch {
+            delay(1300)
+            _state.value = _state.value.copy(diceRolling = false, diceFace = face)
+        }
+    }
+
+    // ─── 抽签 / 掷骰触发模式 ───
+    fun setFortuneTriggerMode(m: String) {
+        prefs.setFortuneTriggerMode(m)
+        _state.value = _state.value.copy(fortuneTriggerMode = m)
+        updateShakeListener()
+    }
+
+    fun setDiceTriggerMode(m: String) {
+        prefs.setDiceTriggerMode(m)
+        _state.value = _state.value.copy(diceTriggerMode = m)
+        updateShakeListener()
+    }
+
+    // ─── 骰子设置 ───
+    fun setDiceWeight(i: Int, w: Int) {
+        prefs.setDiceWeight(i, w)
+        _state.value = _state.value.copy(diceWeights = prefs.getDiceWeights())
+    }
+
+    fun setDiceLabel(i: Int, label: String) {
+        prefs.setDiceLabel(i, label)
+        _state.value = _state.value.copy(diceLabels = prefs.getDiceLabels())
+    }
+
+    fun resetDiceSettings() {
+        prefs.resetDiceSettings()
+        _state.value = _state.value.copy(diceWeights = prefs.getDiceWeights(), diceLabels = prefs.getDiceLabels())
+    }
+
+    // ─── 细化震动 ───
+    /** 摇签筒震动（仅摇一摇抽签）：连续短震模拟筒内签碰撞，力度先强后缓 */
+    private fun vibrateShakeTube() {
+        if (!vibrator.hasVibrator()) return
+        val v = (255 * _state.value.vibrationIntensity).toInt().coerceIn(1, 255)
+        vibrator.vibrate(VibrationEffect.createWaveform(
+            longArrayOf(0, 55, 45, 60, 45, 70, 45, 75, 45, 80, 50, 85, 50, 90, 55, 85, 55, 70, 50, 55, 40),
+            intArrayOf(0, (v * 0.5f).toInt(), 0, (v * 0.65f).toInt(), 0, (v * 0.8f).toInt(), 0, (v * 0.9f).toInt(), 0, (v * 1.0f).toInt(), 0, (v * 1.0f).toInt(), 0, (v * 0.85f).toInt(), 0, (v * 0.7f).toInt(), 0, (v * 0.55f).toInt(), 0, (v * 0.4f).toInt(), 0),
+            -1
+        ))
+    }
+
+    /** 掷骰震动：模拟骰子在桌面上连续弹跳，力度逐次衰减 */
+    private fun vibrateDiceBounce() {
+        if (!vibrator.hasVibrator()) return
+        val v = (255 * _state.value.vibrationIntensity).toInt().coerceIn(1, 255)
+        vibrator.vibrate(VibrationEffect.createWaveform(
+            longArrayOf(0, 40, 60, 50, 65, 60, 75, 75, 90, 90, 110, 110, 130, 140, 160, 170),
+            intArrayOf(0, (v * 1.0f).toInt(), 0, (v * 0.85f).toInt(), 0, (v * 0.7f).toInt(), 0, (v * 0.55f).toInt(), 0, (v * 0.4f).toInt(), 0, (v * 0.3f).toInt(), 0, (v * 0.2f).toInt(), 0, (v * 0.12f).toInt()),
+            -1
+        ))
     }
 
     fun toggleMenu() { _state.value = _state.value.copy(showMenu = !_state.value.showMenu) }
@@ -303,5 +423,5 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     fun dismissLegalPage() { _state.value = _state.value.copy(showLegalPage = null) }
     fun onVersionClick() { _state.value = _state.value.copy(aboutClickCount = _state.value.aboutClickCount + 1) }
     fun resetAboutClicks() { _state.value = _state.value.copy(aboutClickCount = 0) }
-    override fun onCleared() { super.onCleared(); celebrationJob?.cancel(); try { soundPool?.release() } catch (_: Exception) {} }
+    override fun onCleared() { super.onCleared(); celebrationJob?.cancel(); shakeDetector?.stop(); try { soundPool?.release() } catch (_: Exception) {} }
 }

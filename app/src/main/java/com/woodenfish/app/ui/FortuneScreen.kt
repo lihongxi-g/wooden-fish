@@ -42,7 +42,7 @@ val KaiTiFont = FontFamily(Font(com.woodenfish.app.R.font.kaiti))
 // 签面文字颜色：纯黑（木签米黄底上对比清晰，古代木刻感）
 val InkBlack = Color(0xFF1A1A1A)
 
-private fun t(lang: String, zhCN: String, zhTW: String, en: String) = when (lang) { "zh-TW" -> zhTW; "en" -> en; else -> zhCN }
+private fun t(lang: String, zhCN: String, zhTW: String, en: String, fr: String = en, ru: String = en, es: String = en) = when (lang) { "zh-TW" -> zhTW; "en" -> en; "fr" -> fr; "ru" -> ru; "es" -> es; else -> zhCN }
 
 /** 抽签主界面：phase 0=静置 1=摇晃中 2=签已弹出 3=已翻面 */
 @Composable
@@ -50,15 +50,21 @@ fun FortuneScreen(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: 
     val phase = state.fortunePhase
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         // 标题
-        Text(t(lang, "求籤", "求籤", "Fortune"), style = MaterialTheme.typography.headlineLarge.copy(fontSize = 42.sp), fontFamily = KaiTiFont, color = MaterialTheme.colorScheme.onSurface)
+        Text(t(lang, "求籤", "求籤", "Fortune", "Tirage", "Гадание", "Sortilegio"), style = MaterialTheme.typography.headlineLarge.copy(fontSize = 42.sp), fontFamily = KaiTiFont, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.height(4.dp))
-        Text(t(lang, "誠心所念，必有迴響", "誠心所念，必有迴響", "Ask with a sincere heart"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(t(lang, "誠心所念，必有迴響", "誠心所念，必有迴響", "Ask with a sincere heart", "Demandez avec un cœur sincère", "Просите с искренним сердцем", "Pide con un corazón sincero"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(28.dp))
 
         Box(Modifier.size(300.dp), contentAlignment = Alignment.Center) {
             FortuneTube(
                 phase = phase, tick = state.fortuneTick,
-                modifier = Modifier.size(280.dp).clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { viewModel.tapFortuneTube() }
+                modifier = Modifier.size(280.dp).clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
+                    if (state.fortuneTriggerMode == "shake") {
+                        viewModel.toast(t(lang, "搖一搖手機抽籤", "搖一搖手機抽籤", "Shake your phone to draw", "Secouez le téléphone pour tirer", "Встряхните телефон для гадания", "Agita el teléfono para sacar"))
+                    } else {
+                        viewModel.tapFortuneTube()
+                    }
+                }
             )
             if (phase >= 2 && state.fortuneStick != null) {
                 DrawnStick(
@@ -73,14 +79,17 @@ fun FortuneScreen(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: 
         // 提示 / 操作区（固定高度防跳动）
         Box(Modifier.height(64.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
             when (phase) {
-                0 -> HintText(t(lang, "點擊籤筒，搖一籤", "點擊籤筒，搖一籤", "Tap the tube to draw"))
-                1 -> HintText(t(lang, "搖籤中…", "搖籤中…", "Shaking…"))
-                2 -> HintText(t(lang, "點擊木籤查看籤文", "點擊木籤查看籤文", "Tap the stick to see it"))
+                0 -> if (state.fortuneTriggerMode == "shake")
+                    HintText(t(lang, "搖一搖手機抽籤", "搖一搖手機抽籤", "Shake your phone to draw", "Secouez le téléphone pour tirer", "Встряхните телефон для гадания", "Agita el teléfono para sacar"))
+                else
+                    HintText(t(lang, "點擊籤筒，搖一籤", "點擊籤筒，搖一籤", "Tap the tube to draw", "Touchez le tube pour tirer", "Нажмите на стаканчик", "Toca el tubo para sacar"))
+                1 -> HintText(t(lang, "搖籤中…", "搖籤中…", "Shaking…", "En cours…", "Встряска…", "Agitando…"))
+                2 -> HintText(t(lang, "點擊木籤查看籤文", "點擊木籤查看籤文", "Tap the stick to see it", "Touchez le bâton pour voir", "Нажмите на палочку", "Toca el palo para verlo"))
                 else -> Button(
                     onClick = { viewModel.resetFortune() },
                     shape = RoundedCornerShape(24.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) { Text(t(lang, "再抽一籤", "再抽一籤", "Draw again"), fontSize = 15.sp) }
+                ) { Text(t(lang, "再抽一籤", "再抽一籤", "Draw again", "Retirer", "Ещё раз", "Sacar de nuevo"), fontSize = 15.sp) }
             }
         }
     }

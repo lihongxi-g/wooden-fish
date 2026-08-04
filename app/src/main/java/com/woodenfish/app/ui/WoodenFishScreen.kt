@@ -46,7 +46,7 @@ import com.woodenfish.app.WoodenFishViewModel
 import com.woodenfish.app.ui.theme.*
 import kotlinx.coroutines.launch
 
-private fun t(lang: String, zhCN: String, zhTW: String, en: String) = when (lang) { "zh-TW" -> zhTW; "en" -> en; else -> zhCN }
+private fun t(lang: String, zhCN: String, zhTW: String, en: String, fr: String = en, ru: String = en, es: String = en) = when (lang) { "zh-TW" -> zhTW; "en" -> en; "fr" -> fr; "ru" -> ru; "es" -> es; else -> zhCN }
 
 private val hourPresets = listOf(1, 2, 3, 6, 12)
 private val minPresets = listOf(15, 30, 45, 60, 120)
@@ -108,12 +108,15 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
 
         // Sub-pages
         when (page) {
-            "settings" -> { SubPage(t(lang, "设置", "設定", "Settings"), onBack = { page = null }) { SettingsPage(lang, onOpen = { page = it }) }; return@WoodenFishTheme }
-            "notify" -> { SubPage(t(lang, "提醒设置", "提醒設定", "Notifications"), onBack = { page = "settings" }) { NotifySettingsPage(state, viewModel, lang, context) }; return@WoodenFishTheme }
-            "sound" -> { SubPage(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration"), onBack = { page = "settings" }) { SoundVibrationPage(state, viewModel, lang) }; return@WoodenFishTheme }
-            "appearance" -> { SubPage(t(lang, "界面主题", "界面主題", "Theme"), onBack = { page = "settings" }) { AppearancePage(state, viewModel, lang, isDark) }; return@WoodenFishTheme }
-            "language" -> { SubPage(t(lang, "语言", "語言", "Language"), onBack = { page = "settings" }) { LanguagePage(state, viewModel, lang) }; return@WoodenFishTheme }
-            "about" -> { SubPage(t(lang, "关于", "關於", "About"), onBack = { page = null; viewModel.resetAboutClicks() }) { AboutPage(viewModel, lang, context) }; return@WoodenFishTheme }
+            "settings" -> { SubPage(t(lang, "设置", "設定", "Settings", "Réglages", "Настройки", "Ajustes"), onBack = { page = null }) { SettingsPage(lang, onOpen = { page = it }) }; return@WoodenFishTheme }
+            "notify" -> { SubPage(t(lang, "提醒设置", "提醒設定", "Notifications", "Notifications", "Напоминания", "Notificaciones"), onBack = { page = "settings" }) { NotifySettingsPage(state, viewModel, lang, context) }; return@WoodenFishTheme }
+            "sound" -> { SubPage(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration", "Son et vibration", "Звук и вибрация", "Sonido y vibración"), onBack = { page = "settings" }) { SoundVibrationPage(state, viewModel, lang) }; return@WoodenFishTheme }
+            "appearance" -> { SubPage(t(lang, "界面主题", "界面主題", "Theme", "Thème", "Тема", "Tema"), onBack = { page = "settings" }) { AppearancePage(state, viewModel, lang, isDark) }; return@WoodenFishTheme }
+            "language" -> { SubPage(t(lang, "语言", "語言", "Language", "Langue", "Язык", "Idioma"), onBack = { page = "settings" }) { LanguagePage(state, viewModel, lang) }; return@WoodenFishTheme }
+            "about" -> { SubPage(t(lang, "关于", "關於", "About", "À propos", "О приложении", "Acerca de"), onBack = { page = null; viewModel.resetAboutClicks() }) { AboutPage(viewModel, lang, context) }; return@WoodenFishTheme }
+            "fortune-mode" -> { SubPage(t(lang, "抽签模式", "抽籤模式", "Draw Mode", "Mode tirage", "Режим гадания", "Modo de sortilegio"), onBack = { page = "settings" }) { TriggerModePage(title = "", current = state.fortuneTriggerMode, onSelect = { viewModel.setFortuneTriggerMode(it) }, tapLabel = t(lang, "点按抽签", "點按抽籤", "Tap to draw", "Toucher", "По нажатию", "Tocar"), shakeLabel = t(lang, "摇一摇抽签", "搖一搖抽籤", "Shake to draw", "Secouer", "Встряской", "Agitar"), desc = t(lang, "点按抽签：点击签筒即可抽签。摇一摇抽签：晃动手机抽签，摇晃时手机会模拟签筒内竹签碰撞的震动反馈。", "點按抽籤：點擊籤筒即可抽籤。搖一搖抽籤：晃動手機抽籤，搖晃時手機會模擬籤筒內竹籤碰撞的震動回饋。", "Tap mode: tap the tube to draw. Shake mode: shake your phone to draw — the phone vibrates like sticks rattling in the tube.", "Mode toucher : touchez le tube. Mode secouer : secouez le téléphone — il vibre comme des baguettes qui s'entrechoquent.", "По нажатию: нажмите на стаканчик. Встряской: встряхните телефон — вибрация имитирует стук палочек.", "Modo tocar: toca el tubo. Modo agitar: agita el teléfono — vibra como palitos chocando en el tubo.")); return@WoodenFishTheme }
+            "dice-mode" -> { SubPage(t(lang, "掷骰模式", "擲骰模式", "Dice Mode", "Mode dé", "Режим кости", "Modo de dado"), onBack = { page = "settings" }) { TriggerModePage(title = "", current = state.diceTriggerMode, onSelect = { viewModel.setDiceTriggerMode(it) }, tapLabel = t(lang, "点按掷骰", "點按擲骰", "Tap to roll", "Toucher", "По нажатию", "Tocar"), shakeLabel = t(lang, "摇一摇掷骰", "搖一搖擲骰", "Shake to roll", "Secouer", "Встряской", "Agitar"), desc = t(lang, "两种模式掷骰时都会模拟骰子在桌面连续弹跳、力度逐渐衰减的震动效果。", "兩種模式擲骰時都會模擬骰子在桌面連續彈跳、力度逐漸衰減的震動效果。", "Both modes simulate the die bouncing across the table with fading vibration.", "Les deux modes simulent les rebonds du dé sur la table avec une vibration qui s'estompe.", "Оба режима имитируют подпрыгивание кости по столу с затухающей вибрацией.", "Ambos modos simulan los rebotes del dado sobre la mesa con vibración decreciente.")); return@WoodenFishTheme }
+            "dice-settings" -> { SubPage(t(lang, "骰子设置", "骰子設置", "Dice Settings", "Réglages du dé", "Настройки кости", "Ajustes del dado"), onBack = { page = "settings" }) { DiceSettingsPage(state, viewModel, lang) }; return@WoodenFishTheme }
         }
 
         // Main
@@ -125,11 +128,11 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
                     topBar = { TopAppBar(title = { Text("Doki", fontWeight = FontWeight.Medium) }, navigationIcon = { TextButton(onClick = { viewModel.toggleMenu() }) { Text("\u2630", fontSize = 22.sp, color = MaterialTheme.colorScheme.onSurface) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) },
                     containerColor = MaterialTheme.colorScheme.background,
                 ) { pd -> Box(Modifier.fillMaxSize().padding(pd)) {
-                    AnimatedContent(targetState = state.fortuneMode, transitionSpec = { fadeIn(tween(280)) togetherWith fadeOut(tween(280)) }, label = "mode") { fortune ->
-                        if (fortune) {
-                            FortuneScreen(state, viewModel, lang)
-                        } else {
-                            Box(Modifier.fillMaxSize()) {
+                    AnimatedContent(targetState = state.mode, transitionSpec = { fadeIn(tween(280)) togetherWith fadeOut(tween(280)) }, label = "mode") { mode ->
+                        when (mode) {
+                            1 -> FortuneScreen(state, viewModel, lang)
+                            2 -> DiceScreen(state, viewModel, lang)
+                            else -> Box(Modifier.fillMaxSize()) {
                                 Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                     CounterDisplay(state.todayCount, state.totalCount, lang)
                                     Spacer(Modifier.height(32.dp))
@@ -146,10 +149,10 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
                             }
                         }
                     }
-                    // 底部切换箭头：左下切木鱼，右下切抽签
+                    // 底部切换箭头：左 ◀ 上一个模式，右 ▶ 下一个模式（木鱼 ⇄ 抽签 ⇄ 骰子 循环）
                     Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        SwitchArrow(active = state.fortuneMode, icon = "\u25C0", label = t(lang, "木鱼", "木魚", "Wooden Fish")) { viewModel.switchMode() }
-                        SwitchArrow(active = !state.fortuneMode, icon = "\u25B6", label = t(lang, "抽签", "抽籤", "Fortune")) { viewModel.switchMode() }
+                        SwitchArrow(icon = "\u25C0") { viewModel.switchMode(-1) }
+                        SwitchArrow(icon = "\u25B6") { viewModel.switchMode(+1) }
                     }
                 } }
             }
@@ -260,15 +263,15 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
     }
 }
 
-/** 底部模式切换箭头：active=true 表示当前在另一模式，点击切回本模式 */
-@Composable private fun SwitchArrow(active: Boolean, icon: String, label: String, onClick: () -> Unit) {
+/** 底部模式切换箭头：左右循环切换 木鱼/抽签/骰子 */
+@Composable private fun SwitchArrow(icon: String, onClick: () -> Unit) {
     Box(
         Modifier.size(46.dp)
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (active) 1f else 0.3f))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
             .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onClick() },
         contentAlignment = Alignment.Center
-    ) { Text(icon, fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (active) 1f else 0.4f)) }
+    ) { Text(icon, fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurface) }
 }
 
 // ═══════════════ DRAWER (no emoji) ═══════════════
@@ -289,10 +292,13 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
 // ═══════════════ SETTINGS (sub-menu list) ═══════════════
 @Composable private fun SettingsPage(lang: String, onOpen: (String) -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        SettingItem(t(lang, "提醒设置", "提醒設定", "Notifications"), "notify", onOpen)
-        SettingItem(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration"), "sound", onOpen)
-        SettingItem(t(lang, "界面主题", "界面主題", "Theme"), "appearance", onOpen)
-        SettingItem(t(lang, "语言", "語言", "Language"), "language", onOpen)
+        SettingItem(t(lang, "提醒设置", "提醒設定", "Notifications", "Notifications", "Напоминания", "Notificaciones"), "notify", onOpen)
+        SettingItem(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration", "Son et vibration", "Звук и вибрация", "Sonido y vibración"), "sound", onOpen)
+        SettingItem(t(lang, "界面主题", "界面主題", "Theme", "Thème", "Тема", "Tema"), "appearance", onOpen)
+        SettingItem(t(lang, "语言", "語言", "Language", "Langue", "Язык", "Idioma"), "language", onOpen)
+        SettingItem(t(lang, "抽签模式", "抽籤模式", "Draw Mode", "Mode tirage", "Режим гадания", "Modo de sortilegio"), "fortune-mode", onOpen)
+        SettingItem(t(lang, "掷骰模式", "擲骰模式", "Dice Mode", "Mode dé", "Режим кости", "Modo de dado"), "dice-mode", onOpen)
+        SettingItem(t(lang, "骰子设置", "骰子設置", "Dice Settings", "Réglages du dé", "Настройки кости", "Ajustes del dado"), "dice-settings", onOpen)
     }
 }
 @Composable private fun SettingItem(label: String, target: String, onOpen: (String) -> Unit) {
@@ -520,7 +526,14 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
 // ═══════════════ LANGUAGE ═══════════════
 @Composable private fun LanguagePage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(Triple("简体中文", "zh-CN", "Simplified Chinese"), Triple("繁體中文", "zh-TW", "Traditional Chinese"), Triple("English", "en", "English")).forEach { (label, code, _) ->
+        listOf(
+            Triple("简体中文", "zh-CN", "简体中文"),
+            Triple("繁體中文", "zh-TW", "繁體中文"),
+            Triple("English", "en", "English"),
+            Triple("Français", "fr", "Français"),
+            Triple("Русский", "ru", "Русский"),
+            Triple("Español", "es", "Español"),
+        ).forEach { (label, code, _) ->
             Row(Modifier.fillMaxWidth().clickable { viewModel.setLanguage(code) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                 if (state.language == code) Text("\u2713", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
@@ -581,7 +594,8 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 2.0.9", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val ver = try { context.packageManager.getPackageInfo(context.packageName, 0).versionName } catch (_: Exception) { "?" }
+            Text("${t(lang, "版本", "版本", "Version", "Version", "Версия", "Versión")} $ver", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)

@@ -73,7 +73,8 @@ class PreferencesManager(context: Context) {
     fun setThemeMode(m: ThemeMode) = p.edit().putString("theme_mode", m.name).apply()
 
     // ─── Language ───
-    fun getLanguage() = p.getString("language", "zh-CN") ?: "zh-CN"
+    /** null = 用户从未手动设置过语言（此时自动跟随系统语言） */
+    fun getLanguage(): String? = p.getString("language", null)
     fun setLanguage(l: String) = p.edit().putString("language", l).apply()
 
     // ─── Sound & Vibration ───
@@ -85,4 +86,26 @@ class PreferencesManager(context: Context) {
     // ─── Interaction speed ───
     fun getTapSpeed() = p.getFloat("tap_speed", 1.0f)
     fun setTapSpeed(v: Float) = p.edit().putFloat("tap_speed", v).apply()
+
+    // ─── Fortune trigger mode ("tap" / "shake") ───
+    fun getFortuneTriggerMode() = p.getString("fortune_trigger", "tap") ?: "tap"
+    fun setFortuneTriggerMode(m: String) = p.edit().putString("fortune_trigger", m).apply()
+
+    // ─── Dice trigger mode ("tap" / "shake") ───
+    fun getDiceTriggerMode() = p.getString("dice_trigger", "tap") ?: "tap"
+    fun setDiceTriggerMode(m: String) = p.edit().putString("dice_trigger", m).apply()
+
+    // ─── Dice weights (1-6, 权重制，默认全 1 即均等) ───
+    fun getDiceWeights(): List<Int> = (1..6).map { p.getInt("dice_weight_$it", 1).coerceIn(0, 100) }
+    fun setDiceWeight(i: Int, w: Int) = p.edit().putInt("dice_weight_${i + 1}", w.coerceIn(0, 100)).apply()
+
+    // ─── Dice labels (1-6 自定义定义，如 1=打篮球) ───
+    fun getDiceLabels(): List<String> = (1..6).map { p.getString("dice_label_$it", "") ?: "" }
+    fun setDiceLabel(i: Int, label: String) = p.edit().putString("dice_label_${i + 1}", label.take(10)).apply()
+
+    fun resetDiceSettings() {
+        val e = p.edit()
+        for (i in 1..6) { e.putInt("dice_weight_$i", 1); e.putString("dice_label_$i", "") }
+        e.apply()
+    }
 }
