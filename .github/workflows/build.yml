@@ -50,20 +50,20 @@ jobs:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: $ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner verify --print-certs app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Publish Release
-        if: success()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VER=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
-          if gh release view "v$VER" --repo lihongxi-g/wooden-fish > /dev/null 2>&1; then
-            gh release upload "v$VER" app/build/outputs/apk/debug/app-debug.apk --repo lihongxi-g/wooden-fish --clobber
-          else
-            gh release create "v$VER" app/build/outputs/apk/debug/app-debug.apk \
-              --repo lihongxi-g/wooden-fish \
-              --title "Doki v$VER" \
-              --notes "Doki 电子木鱼 v$VER 自动构建发布"
-          fi
+      # - name: Publish Release
+      #   if: success()
+      #   env:
+      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: |
+      #     VER=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+      #     if gh release view "v$VER" --repo lihongxi-g/wooden-fish > /dev/null 2>&1; then
+      #       gh release upload "v$VER" app/build/outputs/apk/debug/app-debug.apk --repo lihongxi-g/wooden-fish --clobber
+      #     else
+      #       gh release create "v$VER" app/build/outputs/apk/debug/app-debug.apk \
+      #         --repo lihongxi-g/wooden-fish \
+      #         --title "Doki v$VER" \
+      #         --notes "Doki 电子木鱼 v$VER 自动构建发布"
+      #     fi
 
       - name: Upload APK
         if: success()

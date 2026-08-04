@@ -125,18 +125,31 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
                     topBar = { TopAppBar(title = { Text("Doki", fontWeight = FontWeight.Medium) }, navigationIcon = { TextButton(onClick = { viewModel.toggleMenu() }) { Text("\u2630", fontSize = 22.sp, color = MaterialTheme.colorScheme.onSurface) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) },
                     containerColor = MaterialTheme.colorScheme.background,
                 ) { pd -> Box(Modifier.fillMaxSize().padding(pd)) {
-                    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                        CounterDisplay(state.todayCount, state.totalCount, lang)
-                        Spacer(Modifier.height(32.dp))
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(240.dp)) {
-                            state.particles.forEach { PlusOneAnim(it, state.tapSpeed) }
-                            Box(Modifier.size(200.dp).clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { viewModel.onFishTap() }, contentAlignment = Alignment.Center) {
-                                FishCanvas(tapTick = state.tapTick, speed = state.tapSpeed, modifier = Modifier.size(190.dp))
+                    AnimatedContent(targetState = state.fortuneMode, transitionSpec = { fadeIn(tween(280)) togetherWith fadeOut(tween(280)) }, label = "mode") { fortune ->
+                        if (fortune) {
+                            FortuneScreen(state, viewModel, lang)
+                        } else {
+                            Box(Modifier.fillMaxSize()) {
+                                Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                    CounterDisplay(state.todayCount, state.totalCount, lang)
+                                    Spacer(Modifier.height(32.dp))
+                                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(240.dp)) {
+                                        state.particles.forEach { PlusOneAnim(it, state.tapSpeed) }
+                                        Box(Modifier.size(200.dp).clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { viewModel.onFishTap() }, contentAlignment = Alignment.Center) {
+                                            FishCanvas(tapTick = state.tapTick, speed = state.tapSpeed, modifier = Modifier.size(190.dp))
+                                        }
+                                    }
+                                }
+                                AnimatedVisibility(visible = state.showCelebration, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.Center)) {
+                                    Text(t(lang, "\uD83C\uDF89 功德圆满 \uD83C\uDF89\n今日已敲 1000 次！", "\uD83C\uDF89 功德圓滿 \uD83C\uDF89\n今日已敲 1000 次！", "\uD83C\uDF89 1000 Taps!\nMerit complete!"), style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontSize = 26.sp), color = MaterialTheme.colorScheme.tertiary, textAlign = TextAlign.Center)
+                                }
                             }
                         }
                     }
-                    AnimatedVisibility(visible = state.showCelebration, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.Center)) {
-                        Text(t(lang, "\uD83C\uDF89 功德圆满 \uD83C\uDF89\n今日已敲 1000 次！", "\uD83C\uDF89 功德圓滿 \uD83C\uDF89\n今日已敲 1000 次！", "\uD83C\uDF89 1000 Taps!\nMerit complete!"), style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontSize = 26.sp), color = MaterialTheme.colorScheme.tertiary, textAlign = TextAlign.Center)
+                    // 底部切换箭头：左下切木鱼，右下切抽签
+                    Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        SwitchArrow(active = state.fortuneMode, icon = "\u25C0", label = t(lang, "木鱼", "木魚", "Wooden Fish")) { viewModel.switchMode() }
+                        SwitchArrow(active = !state.fortuneMode, icon = "\u25B6", label = t(lang, "抽签", "抽籤", "Fortune")) { viewModel.switchMode() }
                     }
                 } }
             }
@@ -245,6 +258,17 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
         Text("$todayCount", style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Light, fontSize = 56.sp), color = MaterialTheme.colorScheme.onSurface)
         if (todayCount > 0) { Spacer(Modifier.height(2.dp)); Text("${t(lang, "总计", "總計", "Total")} $totalCount", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) }
     }
+}
+
+/** 底部模式切换箭头：active=true 表示当前在另一模式，点击切回本模式 */
+@Composable private fun SwitchArrow(active: Boolean, icon: String, label: String, onClick: () -> Unit) {
+    Box(
+        Modifier.size(46.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (active) 1f else 0.3f))
+            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onClick() },
+        contentAlignment = Alignment.Center
+    ) { Text(icon, fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (active) 1f else 0.4f)) }
 }
 
 // ═══════════════ DRAWER (no emoji) ═══════════════

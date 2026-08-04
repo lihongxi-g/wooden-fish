@@ -26,14 +26,14 @@ fun UserAgreementScreen(onBack: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "更新日期：2026年8月2日\n生效日期：2026年8月2日",
+            text = "更新日期：2026年8月4日\n生效日期：2026年8月4日",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(24.dp))
 
         Section(title = "1. 服务说明") {
-            Text(body = "Doki（以下简称本应用）是一款电子木鱼应用，旨在为用户提供减压、冥想辅助和娱乐功能。本应用所有功能均为免费提供。")
+            Text(body = "Doki（以下简称本应用）是一款电子木鱼应用，提供敲击木鱼、功德计数、定时提醒与电子求签功能，旨在为用户提供减压、冥想辅助和娱乐功能。本应用所有功能均为免费提供。")
         }
 
         Section(title = "2. 用户行为规范") {
@@ -41,7 +41,7 @@ fun UserAgreementScreen(onBack: () -> Unit) {
         }
 
         Section(title = "3. 免责声明") {
-            Text(body = "本应用提供的计数、提醒等功能仅供娱乐参考，不构成任何形式的建议或承诺。开发者不对因使用本应用而产生的任何直接或间接损失承担责任。")
+            Text(body = "本应用提供的计数、提醒、求签等功能仅供娱乐参考，不构成任何形式的建议或承诺。求签结果由程序随机生成，与任何现实运势、命理或决策无关，请勿据此做出重要决定。开发者不对因使用本应用而产生的任何直接或间接损失承担责任。")
         }
 
         Section(title = "4. 知识产权") {
@@ -74,18 +74,18 @@ fun PrivacyPolicyScreen(onBack: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "更新日期：2026年8月2日\n生效日期：2026年8月2日",
+            text = "更新日期：2026年8月4日\n生效日期：2026年8月4日",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(24.dp))
 
         Section(title = "1. 信息收集") {
-            Text(body = "本应用仅在本地存储以下数据：\n• 每日敲击计数和总计数\n• 通知偏好设置（时间、频率等）\n• 首次使用标记和协议同意状态\n\n所有数据均存储在您的设备本地，我们不会收集、上传或分享任何个人信息。本应用不需要网络连接即可正常使用。")
+            Text(body = "本应用仅在本地存储以下数据：\n• 每日敲击计数和总计数\n• 通知偏好设置（时间、频率等）\n• 首次使用标记和协议同意状态\n\n求签结果在抽签时于设备内存中随机生成，不存储、不上传任何抽签记录。所有数据均存储在您的设备本地，我们不会收集、上传或分享任何个人信息。本应用不需要网络连接即可正常使用。")
         }
 
         Section(title = "2. 权限使用") {
-            Text(body = "本应用申请以下权限及其用途：\n• 振动权限：用于点击反馈和庆祝效果\n• 通知权限：用于定时提醒您使用本应用\n• 开机自启权限：用于在设备重启后恢复提醒闹钟\n\n您可以随时在系统设置中关闭这些权限。")
+            Text(body = "本应用申请以下权限及其用途：\n• 振动权限：用于点击反馈和庆祝效果\n• 通知权限：用于定时提醒您使用本应用\n• 日历权限（读取/写入）：用于固定时间提醒写入系统日历\n• 开机自启权限：用于在设备重启后恢复提醒闹钟\n\n求签功能不需要任何额外权限。您可以随时在系统设置中关闭这些权限。")
         }
 
         Section(title = "3. 数据安全") {

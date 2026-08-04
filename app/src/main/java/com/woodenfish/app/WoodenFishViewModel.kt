@@ -46,6 +46,11 @@ data class WoodenFishState(
     val vibrationSupported: Boolean = true, val soundSupported: Boolean = true,
     val toastMessage: String? = null,
     val selectedCalendarName: String? = null,
+    // 求签：false=木鱼模式 true=签筒模式；phase 0=静置 1=摇晃 2=签弹出 3=已翻面
+    val fortuneMode: Boolean = false,
+    val fortunePhase: Int = 0,
+    val fortuneStick: FortuneStick? = null,
+    val fortuneTick: Int = 0,
 )
 
 class WoodenFishViewModel(application: Application) : AndroidViewModel(application) {
@@ -194,6 +199,44 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
 
     fun toast(msg: String) { _state.value = _state.value.copy(toastMessage = msg) }
     fun clearToast() { _state.value = _state.value.copy(toastMessage = null) }
+
+    // ─── 求签 ───
+    /** 切换木鱼 / 签筒模式 */
+    fun switchMode() {
+        _state.value = _state.value.copy(
+            fortuneMode = !_state.value.fortuneMode,
+            fortunePhase = 0, fortuneStick = null,
+            fortuneTick = _state.value.fortuneTick + 1
+        )
+    }
+
+    /** 点击签筒：开始摇晃，1.4s 后弹出木签 */
+    fun tapFortuneTube() {
+        if (_state.value.fortunePhase != 0) return
+        val stick = FortuneData.draw()
+        _state.value = _state.value.copy(fortunePhase = 1, fortuneStick = stick, fortuneTick = _state.value.fortuneTick + 1)
+        viewModelScope.launch {
+            delay(1400)
+            if (_state.value.fortunePhase == 1) {
+                vibrate(40)
+                playWoodSound(_state.value.soundVolume)
+                _state.value = _state.value.copy(fortunePhase = 2, fortuneTick = _state.value.fortuneTick + 1)
+            }
+        }
+    }
+
+    /** 点击弹出的木签：翻面显示签文 */
+    fun flipFortuneStick() {
+        if (_state.value.fortunePhase == 2) {
+            _state.value = _state.value.copy(fortunePhase = 3, fortuneTick = _state.value.fortuneTick + 1)
+        }
+    }
+
+    /** 再抽一签：回到静置 */
+    fun resetFortune() {
+        _state.value = _state.value.copy(fortunePhase = 0, fortuneStick = null, fortuneTick = _state.value.fortuneTick + 1)
+    }
+
     fun toggleMenu() { _state.value = _state.value.copy(showMenu = !_state.value.showMenu) }
     fun closeMenu() { _state.value = _state.value.copy(showMenu = false) }
     fun updateNotificationEnabled(e: Boolean) {
