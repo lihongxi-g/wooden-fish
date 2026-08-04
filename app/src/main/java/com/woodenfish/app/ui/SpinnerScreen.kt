@@ -95,7 +95,9 @@ private fun SpinnerWheel(state: WoodenFishState, viewModel: WoodenFishViewModel,
     val rot = remember { Animatable(state.spinnerAngle) }
     LaunchedEffect(state.spinnerTick) {
         if (state.spinnerSpinning) {
+            // 动画完全停稳后再通知 ViewModel 显示结果，避免指针未到位结果已出现的错位
             rot.animateTo(state.spinnerAngle, tween(3600, easing = FastOutSlowInEasing))
+            viewModel.onSpinnerSettled()
         }
     }
     val n = segs.size

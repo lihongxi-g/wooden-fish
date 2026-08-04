@@ -365,10 +365,16 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
             spinnerSpinning = true, spinnerResult = idx, spinnerTick = _state.value.spinnerTick + 1,
             spinnerAngle = target
         )
+        // 兜底：动画异常中断（切页等）时 5s 后恢复；正常由 UI 动画完成回调结束
         viewModelScope.launch {
-            delay(3600)
+            delay(5000)
             _state.value = _state.value.copy(spinnerSpinning = false)
         }
+    }
+
+    /** UI 动画完全停稳后调用：结束转动状态并显示结果（保证指针位置与结果一致） */
+    fun onSpinnerSettled() {
+        _state.value = _state.value.copy(spinnerSpinning = false)
     }
 
     fun addSpinnerSegment() {
