@@ -159,7 +159,9 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     private fun playWoodSound(vol: Float) {
         val sp = soundPool
         if (sp != null && soundLoaded && woodSoundId != 0) {
-            sp.play(woodSoundId, vol, vol, 1, 0, 1f)
+            // 播放速率跟随互动速度：0.5→0.8 低沉、1.0→1.0、1.25→1.1 清亮
+            val rate = 0.6f + 0.4f * _state.value.tapSpeed
+            sp.play(woodSoundId, vol, vol, 1, 0, rate)
         } else {
             // 兜底：SoundPool 未就绪时用一次性 AudioTrack
             try {

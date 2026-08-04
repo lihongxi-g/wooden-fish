@@ -108,10 +108,7 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
 
         // Sub-pages
         when (page) {
-            "notify" -> { SubPage(t(lang, "提醒设置", "提醒設定", "Notifications"), onBack = { page = null }) { NotifySettingsPage(state, viewModel, lang, context) }; return@WoodenFishTheme }
-            "appearance" -> { SubPage(t(lang, "界面主题", "界面主題", "Theme"), onBack = { page = null }) { AppearancePage(state, viewModel, lang, isDark) }; return@WoodenFishTheme }
-            "language" -> { SubPage(t(lang, "语言", "語言", "Language"), onBack = { page = null }) { LanguagePage(state, viewModel, lang) }; return@WoodenFishTheme }
-            "sound" -> { SubPage(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration"), onBack = { page = null }) { SoundVibrationPage(state, viewModel, lang) }; return@WoodenFishTheme }
+            "settings" -> { SubPage(t(lang, "设置", "設定", "Settings"), onBack = { page = null }) { SettingsPage(state, viewModel, lang, isDark, context) }; return@WoodenFishTheme }
             "about" -> { SubPage(t(lang, "关于", "關於", "About"), onBack = { page = null; viewModel.resetAboutClicks() }) { AboutPage(viewModel, lang, context) }; return@WoodenFishTheme }
         }
 
@@ -174,43 +171,50 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
         // 地面阴影（多层柔化）
         drawOval(color = Color(0xFF140801).copy(alpha = 0.16f), topLeft = Offset(w * 0.19f, h * 0.76f + sink), size = Size(w * 0.62f, h * 0.14f))
         drawOval(color = Color(0xFF140801).copy(alpha = 0.10f), topLeft = Offset(w * 0.22f, h * 0.74f + sink), size = Size(w * 0.56f, h * 0.12f))
-        // 木鱼主体（垂直渐变：顶亮底暗，3D 立体感）
-        drawOval(brush = Brush.verticalGradient(listOf(Color(0xFFEC9A4E), Color(0xFF773816)), startY = h * 0.24f + sink, endY = h * 0.82f + sink), topLeft = Offset(w * 0.13f, h * 0.24f + sink), size = Size(w * 0.74f, h * 0.58f))
-        // 顶部高光（柔化）
-        drawOval(color = Color(0xFFFFCD80).copy(alpha = 0.28f), topLeft = Offset(w * 0.20f, h * 0.26f + sink), size = Size(w * 0.57f, h * 0.30f))
-        drawOval(color = Color(0xFFFFD28C).copy(alpha = 0.12f), topLeft = Offset(w * 0.22f, h * 0.28f + sink), size = Size(w * 0.53f, h * 0.25f))
-        // 底部暗部（立体感下半）
-        drawOval(color = Color(0xFF411B08).copy(alpha = 0.35f), topLeft = Offset(w * 0.18f, h * 0.54f + sink), size = Size(w * 0.64f, h * 0.27f))
-        // 顶部轮廓弧
-        drawArc(color = Color(0xFFFAAE5E).copy(alpha = 0.6f), startAngle = 195f, sweepAngle = 145f, useCenter = false, topLeft = Offset(w * 0.17f, h * 0.27f + sink), size = Size(w * 0.66f, h * 0.45f), style = Stroke(width = w * 0.008f))
-        // 开口（共鸣口，多边形深腔）
-        val opening = Path().apply {
-            moveTo(w * 0.24f, h * 0.60f + sink); lineTo(w * 0.32f, h * 0.53f + sink); lineTo(w * 0.73f, h * 0.46f + sink); lineTo(w * 0.77f, h * 0.50f + sink); lineTo(w * 0.71f, h * 0.57f + sink); lineTo(w * 0.36f, h * 0.69f + sink); lineTo(w * 0.27f, h * 0.71f + sink); close()
-        }
-        drawPath(opening, color = Color(0xFF371807))
-        val opening2 = Path().apply {
-            moveTo(w * 0.26f, h * 0.60f + sink); lineTo(w * 0.35f, h * 0.54f + sink); lineTo(w * 0.72f, h * 0.48f + sink); lineTo(w * 0.69f, h * 0.53f + sink); lineTo(w * 0.35f, h * 0.66f + sink); lineTo(w * 0.27f, h * 0.68f + sink); close()
-        }
-        drawPath(opening2, color = Color(0xFF4E2209))
-        // 开口上缘高光
-        drawLine(color = Color(0xFFEE9144).copy(alpha = 0.7f), start = Offset(w * 0.32f, h * 0.53f + sink), end = Offset(w * 0.73f, h * 0.46f + sink), strokeWidth = w * 0.005f)
-        drawLine(color = Color(0xFFEE9144).copy(alpha = 0.7f), start = Offset(w * 0.73f, h * 0.46f + sink), end = Offset(w * 0.77f, h * 0.50f + sink), strokeWidth = w * 0.005f)
-        // 木纹（4 条弧线）
-        drawArc(color = Color(0xFF743613).copy(alpha = 0.3f), startAngle = 195f, sweepAngle = 150f, useCenter = false, topLeft = Offset(w * 0.23f, h * 0.35f + sink), size = Size(w * 0.56f, h * 0.23f), style = Stroke(width = w * 0.003f))
-        drawArc(color = Color(0xFF743613).copy(alpha = 0.3f), startAngle = 195f, sweepAngle = 150f, useCenter = false, topLeft = Offset(w * 0.20f, h * 0.38f + sink), size = Size(w * 0.63f, h * 0.26f), style = Stroke(width = w * 0.003f))
-        drawArc(color = Color(0xFF743613).copy(alpha = 0.3f), startAngle = 195f, sweepAngle = 150f, useCenter = false, topLeft = Offset(w * 0.18f, h * 0.68f + sink), size = Size(w * 0.63f, h * 0.14f), style = Stroke(width = w * 0.003f))
-        drawArc(color = Color(0xFF743613).copy(alpha = 0.3f), startAngle = 195f, sweepAngle = 150f, useCenter = false, topLeft = Offset(w * 0.24f, h * 0.71f + sink), size = Size(w * 0.53f, h * 0.11f), style = Stroke(width = w * 0.003f))
-        // 左下轮廓高光
-        drawArc(color = Color(0xFFF7A658).copy(alpha = 0.4f), startAngle = 100f, sweepAngle = 110f, useCenter = false, topLeft = Offset(w * 0.13f, h * 0.25f + sink), size = Size(w * 0.75f, h * 0.57f), style = Stroke(width = w * 0.006f))
-        // 底部小阴影
-        drawOval(color = Color(0xFF4A1F09).copy(alpha = 0.35f), topLeft = Offset(w * 0.29f, h * 0.73f + sink), size = Size(w * 0.42f, h * 0.11f))
-        // 木鱼槌（敲在共鸣口上，动画单驱动，跟手）
+        // 扁球体主体（径向渐变：左上受光右下暗，matplotlib shade 效果）
+        drawOval(
+            brush = Brush.radialGradient(
+                listOf(Color(0xFFF5B06A), Color(0xFFD2691E), Color(0xFFA0522D), Color(0xFF5C2E0E)),
+                center = Offset(w * 0.40f, h * 0.42f + sink), radius = w * 0.5f
+            ),
+            topLeft = Offset(w * 0.12f, h * 0.22f + sink), size = Size(w * 0.76f, h * 0.56f)
+        )
+        // 顶部柔光
+        drawOval(color = Color(0xFFFFD9A0).copy(alpha = 0.25f), topLeft = Offset(w * 0.24f, h * 0.26f + sink), size = Size(w * 0.52f, h * 0.24f))
+        // 底部暗部（加强球体体积）
+        drawOval(color = Color(0xFF2A1206).copy(alpha = 0.30f), topLeft = Offset(w * 0.20f, h * 0.60f + sink), size = Size(w * 0.60f, h * 0.18f))
+        // 眼睛（缝隙上方两侧）
+        drawCircle(color = Color(0xFF3B1F06), radius = w * 0.016f, center = Offset(w * 0.30f, h * 0.38f + sink))
+        drawCircle(color = Color(0xFF3B1F06), radius = w * 0.016f, center = Offset(w * 0.70f, h * 0.38f + sink))
+        // 开口缝隙（赤道前半圈弧线 + 两端圆孔）
+        val slitY = h * 0.54f + sink
+        drawArc(color = Color(0xFF3B1F06), startAngle = 20f, sweepAngle = 140f, useCenter = false, topLeft = Offset(w * 0.16f, slitY - h * 0.02f), size = Size(w * 0.68f, h * 0.05f), style = Stroke(width = w * 0.014f))
+        drawCircle(color = Color(0xFF3B1F06), radius = w * 0.026f, center = Offset(w * 0.205f, slitY))
+        drawCircle(color = Color(0xFF3B1F06), radius = w * 0.026f, center = Offset(w * 0.795f, slitY))
+        // 缝隙下缘高光
+        drawArc(color = Color(0xFFF5B06A).copy(alpha = 0.5f), startAngle = 20f, sweepAngle = 140f, useCenter = false, topLeft = Offset(w * 0.16f, slitY - h * 0.015f), size = Size(w * 0.68f, h * 0.05f), style = Stroke(width = w * 0.004f))
+        // 木纹（淡淡两条）
+        drawArc(color = Color(0xFF743613).copy(alpha = 0.25f), startAngle = 195f, sweepAngle = 150f, useCenter = false, topLeft = Offset(w * 0.22f, h * 0.34f + sink), size = Size(w * 0.56f, h * 0.25f), style = Stroke(width = w * 0.003f))
+        drawArc(color = Color(0xFF743613).copy(alpha = 0.25f), startAngle = 195f, sweepAngle = 150f, useCenter = false, topLeft = Offset(w * 0.24f, h * 0.62f + sink), size = Size(w * 0.52f, h * 0.12f), style = Stroke(width = w * 0.003f))
+        // 木鱼槌（逼真：明暗柄 + 渐变球头 + 高光点 + 阴影，敲击缝隙，动画单驱动跟手）
         val ha = (1f - p) * -30f
-        val px = w * 0.5f; val py = h * 0.08f + sink
+        val px = w * 0.50f; val py = h * 0.14f + sink
         drawContext.canvas.save(); drawContext.canvas.translate(px, py); drawContext.canvas.rotate(ha); drawContext.canvas.translate(-px, -py)
-        drawLine(color = Color(0xFF5D4037), start = Offset(px, py), end = Offset(px + w * 0.05f, py + h * 0.38f), strokeWidth = w * 0.015f)
-        drawCircle(color = Color.Black.copy(alpha = 0.15f), radius = w * 0.07f, center = Offset(px + w * 0.05f + 2.dp.toPx(), py + h * 0.38f + 2.dp.toPx()))
-        drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFBCAAA4), Color(0xFF6D4C41)), center = Offset(px + w * 0.05f, py + h * 0.38f), radius = w * 0.07f), radius = w * 0.07f, center = Offset(px + w * 0.05f, py + h * 0.38f))
+        // 柄（左暗右亮，圆柱感）
+        drawLine(color = Color(0xFF3E2723), start = Offset(px - w * 0.006f, py), end = Offset(px + w * 0.048f, py + h * 0.34f), strokeWidth = w * 0.018f)
+        drawLine(color = Color(0xFFA1887F), start = Offset(px - w * 0.012f, py), end = Offset(px + w * 0.042f, py + h * 0.34f), strokeWidth = w * 0.006f)
+        // 槌头阴影
+        drawCircle(color = Color.Black.copy(alpha = 0.28f), radius = w * 0.078f, center = Offset(px + w * 0.054f + 2.dp.toPx(), py + h * 0.36f + 2.dp.toPx()))
+        // 槌头（硬木球体：径向渐变亮→暗）
+        drawCircle(
+            brush = Brush.radialGradient(
+                listOf(Color(0xFFF0D9C0), Color(0xFFBCAAA4), Color(0xFF6D4C41), Color(0xFF3E2723)),
+                center = Offset(px + w * 0.048f, py + h * 0.345f), radius = w * 0.09f
+            ),
+            radius = w * 0.078f, center = Offset(px + w * 0.048f, py + h * 0.36f)
+        )
+        // 槌头高光点
+        drawCircle(color = Color.White.copy(alpha = 0.55f), radius = w * 0.016f, center = Offset(px + w * 0.034f, py + h * 0.335f))
         drawContext.canvas.restore()
     }
 }
@@ -244,10 +248,7 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
     Column(Modifier.fillMaxHeight().padding(vertical = 24.dp)) {
         Text("Doki", modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         Divider(modifier = Modifier.padding(horizontal = 16.dp)); Spacer(Modifier.height(8.dp))
-        Item(t(lang, "提醒设置", "提醒設定", "Notifications")) { viewModel.closeMenu(); onPage("notify") }
-        Item(t(lang, "界面主题", "界面主題", "Theme")) { viewModel.closeMenu(); onPage("appearance") }
-        Item(t(lang, "语言", "語言", "Language")) { viewModel.closeMenu(); onPage("language") }
-        Item(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration")) { viewModel.closeMenu(); onPage("sound") }
+        Item(t(lang, "设置", "設定", "Settings")) { viewModel.closeMenu(); onPage("settings") }
         Item(t(lang, "用户协议", "用戶協議", "User Agreement")) { viewModel.closeMenu(); viewModel.showLegalPage("agreement") }
         Item(t(lang, "隐私政策", "隱私政策", "Privacy")) { viewModel.closeMenu(); viewModel.showLegalPage("privacy") }
         Item(t(lang, "关于", "關於", "About")) { viewModel.closeMenu(); onPage("about") }
@@ -255,6 +256,26 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
 }
 @Composable private fun Item(label: String, onClick: () -> Unit) {
     TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) { Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)) }
+}
+
+// ═══════════════ SETTINGS (grouped) ═══════════════
+@Composable private fun SettingsPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, isDark: Boolean, context: android.content.Context) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionTitle(t(lang, "提醒设置", "提醒設定", "Notifications"))
+        NotifySettingsPage(state, viewModel, lang, context)
+        Divider(Modifier.padding(vertical = 12.dp))
+        SectionTitle(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration"))
+        SoundVibrationPage(state, viewModel, lang)
+        Divider(Modifier.padding(vertical = 12.dp))
+        SectionTitle(t(lang, "界面主题", "界面主題", "Theme"))
+        AppearancePage(state, viewModel, lang, isDark)
+        Divider(Modifier.padding(vertical = 12.dp))
+        SectionTitle(t(lang, "语言", "語言", "Language"))
+        LanguagePage(state, viewModel, lang)
+    }
+}
+@Composable private fun SectionTitle(text: String) {
+    Text(text, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
 }
 
 // ═══════════════ NOTIFICATION SETTINGS ═══════════════
@@ -292,7 +313,7 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
             viewModel.toast(t(lang, "需要日历权限才能使用固定时间提醒", "需要日曆權限才能使用固定時間提醒", "Calendar permission required"))
         }
     }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(t(lang, "开启提醒", "開啟提醒", "Enable"), style = MaterialTheme.typography.bodyLarge)
             Switch(checked = state.notifyEnabled, onCheckedChange = { viewModel.updateNotificationEnabled(it); viewModel.toast(if (it) t(lang, "提醒已开启", "提醒已開啟", "Notifications enabled") else t(lang, "提醒已关闭", "提醒已關閉", "Notifications disabled")) }, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primaryContainer))
@@ -449,7 +470,7 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
 
 // ═══════════════ APPEARANCE (theme color only) ═══════════════
 @Composable private fun AppearancePage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, isDark: Boolean) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(t(lang, "主题颜色", "主題顏色", "Theme Color"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         allThemes.forEachIndexed { i, tc ->
             val name = when (lang) { "zh-TW" -> tc.nameTW; "en" -> tc.nameEN; else -> tc.name }
@@ -473,7 +494,7 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
 
 // ═══════════════ LANGUAGE ═══════════════
 @Composable private fun LanguagePage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf(Triple("简体中文", "zh-CN", "Simplified Chinese"), Triple("繁體中文", "zh-TW", "Traditional Chinese"), Triple("English", "en", "English")).forEach { (label, code, _) ->
             Row(Modifier.fillMaxWidth().clickable { viewModel.setLanguage(code) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
@@ -485,7 +506,7 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
 
 // ═══════════════ SOUND & VIBRATION ═══════════════
 @Composable private fun SoundVibrationPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Text(t(lang, "声音反馈", "聲音回饋", "Sound Feedback"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         if (state.soundSupported) {
             Text("${t(lang, "音量", "音量", "Volume")}: ${(state.soundVolume * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
@@ -535,7 +556,7 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 2.0.7", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 2.0.8", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
