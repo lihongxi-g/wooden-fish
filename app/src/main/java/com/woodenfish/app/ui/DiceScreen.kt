@@ -181,6 +181,25 @@ private fun DiceFace(face: Int) {
     }
 }
 
+// ═══════════════ 抽签摇晃音效开关（挂在「抽签模式」设置页底部） ═══════════════
+@Composable
+fun FortuneShakeSoundSwitch(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Divider()
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(t(lang, "摇晃音效", "搖晃音效", "Shake sound", "Son de secousse", "Звук встряски", "Sonido de agitación"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text(t(lang, "签筒摇晃时播放木签与筒壁的碰撞声", "籤筒搖晃時播放木籤與筒壁的碰撞聲", "Play the rattling of sticks against the tube while shaking", "Joue le cliquetis des baguettes contre le tube pendant la secousse", "Звук ударов палочек о стенки при встряске", "Reproduce el traqueteo de los palitos al agitar"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(
+                checked = state.fortuneShakeSound,
+                onCheckedChange = { viewModel.setFortuneShakeSound(it) },
+                colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primaryContainer)
+            )
+        }
+    }
+}
+
 // ═══════════════ 触发模式设置页（抽签模式 / 掷骰模式共用） ═══════════════
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -190,6 +209,7 @@ fun TriggerModePage(
     onSelect: (String) -> Unit,
     tapLabel: String, shakeLabel: String,
     desc: String,
+    extra: (@Composable () -> Unit)? = null,
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -201,6 +221,7 @@ fun TriggerModePage(
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)), shape = RoundedCornerShape(8.dp)) {
             Text(desc, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
         }
+        extra?.invoke()
     }
 }
 

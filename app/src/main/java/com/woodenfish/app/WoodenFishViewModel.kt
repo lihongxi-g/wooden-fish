@@ -53,6 +53,7 @@ data class WoodenFishState(
     val fortuneStick: FortuneStick? = null,
     val fortuneTick: Int = 0,
     val fortuneTriggerMode: String = "tap",   // "tap" 点按 / "shake" 摇一摇
+    val fortuneShakeSound: Boolean = true,    // 签筒摇晃音效
     // 骰子
     val diceTriggerMode: String = "tap",      // "tap" / "shake"
     val diceWeights: List<Int> = listOf(1, 1, 1, 1, 1, 1),
@@ -83,7 +84,9 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
     // 常驻 SoundPool：音效预加载，敲击即时播放（低延迟、快速连敲可叠加）
     private var soundPool: SoundPool? = null
     private var woodSoundId = 0
+    private var shakeSoundId = 0
     @Volatile private var soundLoaded = false
+    @Volatile private var shakeLoaded = false
 
     /** 自动跟随系统语言：用户手动设置过则优先，否则按系统 Locale 映射 */
     private fun detectSystemLanguage(): String {
@@ -115,6 +118,7 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
             vibrationSupported = vibrator.hasVibrator(), soundSupported = true,
             selectedCalendarName = prefs.getSelectedCalendarName(),
             fortuneTriggerMode = prefs.getFortuneTriggerMode(), diceTriggerMode = prefs.getDiceTriggerMode(),
+            fortuneShakeSound = prefs.isFortuneShakeSound(),
             diceWeights = prefs.getDiceWeights(), diceLabels = prefs.getDiceLabels(),
             spinnerSegments = prefs.getSpinnerSegments())
         setupSoundPool(application)
@@ -155,10 +159,54 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
                 writeWav(file, synthesizeWoodPcm(1.0f))
             }
             woodSoundId = sp.load(file.absolutePath, 1)
-            sp.setOnLoadCompleteListener { _, _, status -> if (status == 0) soundLoaded = true }
+            // 签筒摇晃声：木签与筒壁碰撞（随机短促敲击 + 沙沙底噪）
+            val shakeFile = java.io.File(context.cacheDir, "shake_sound.wav")
+            if (!shakeFile.exists() || shakeFile.length() == 0L) {
+                writeWav(shakeFile, synthesizeShakePcm(1.0f))
+            }
+            shakeSoundId = sp.load(shakeFile.absolutePath, 1)
+            sp.setOnLoadCompleteListener { _, _, status -> if (status == 0) { soundLoaded = true; shakeLoaded = true } }
         } catch (_: Exception) {
             try { soundPool?.release() } catch (_: Exception) {}
             soundPool = null
+        }
+    }
+
+    /** 合成签筒摇晃声：1.4s 内随机间隔的竹签碰撞（短促阻尼敲击，频率/幅度随机）+ 轻微沙沙底噪 */
+    private fun synthesizeShakePcm(vol: Float): ShortArray {
+        val rate = 44100
+        val dur = 1.4
+        val n = (rate * dur).toInt()
+        val buf = ShortArray(n)
+        val rng = Random(42)
+        var t = 0.04
+        while (t < dur - 0.05) {
+            val freq = 650 + rng.nextFloat() * 950f   // 650-1600Hz：木签碰撞音色
+            val amp = 0.30f + rng.nextFloat() * 0.45f // 随机力度
+            val start = (t * rate).toInt()
+            val len = (0.018f + rng.nextFloat() * 0.03f) * rate // 18-48ms 短促
+            for (i in 0 until len.toInt()) {
+                val idx = start + i
+                if (idx >= n) break
+                val env = exp(-i / (rate * 0.007))
+                val s = sin(2 * PI * freq * i / rate) * env * amp
+                buf[idx] = (buf[idx] + s * vol * Short.MAX_VALUE * 0.75).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+            t += 0.045 + rng.nextFloat() * 0.10f // 随机间隔：疏密不一的碰撞感
+        }
+        // 轻微沙沙底噪（竹签滑动摩擦）
+        for (i in 0 until n) {
+            val noise = (rng.nextFloat() * 2f - 1f) * 0.028f * vol * Short.MAX_VALUE
+            buf[i] = (buf[i] + noise).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+        }
+        return buf
+    }
+
+    /** 播放签筒摇晃声（摇晃阶段，点按/摇一摇两种模式都播） */
+    private fun playShakeSound() {
+        val sp = soundPool
+        if (sp != null && shakeLoaded && shakeSoundId != 0) {
+            sp.play(shakeSoundId, _state.value.soundVolume, _state.value.soundVolume, 1, 0, 1f)
         }
     }
 
@@ -268,6 +316,8 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
         if (_state.value.fortunePhase != 0) return
         val stick = FortuneData.draw()
         _state.value = _state.value.copy(fortunePhase = 1, fortuneStick = stick, fortuneTick = _state.value.fortuneTick + 1)
+        // 签筒摇晃声（可在「抽签模式」设置中关闭）
+        if (_state.value.fortuneShakeSound) playShakeSound()
         // 摇一摇模式：摇晃期间模拟签筒内签碰撞的连续震动
         if (_state.value.fortuneTriggerMode == "shake") vibrateShakeTube()
         viewModelScope.launch {
@@ -317,6 +367,11 @@ class WoodenFishViewModel(application: Application) : AndroidViewModel(applicati
         prefs.setFortuneTriggerMode(m)
         _state.value = _state.value.copy(fortuneTriggerMode = m)
         updateShakeListener()
+    }
+
+    fun setFortuneShakeSound(v: Boolean) {
+        prefs.setFortuneShakeSound(v)
+        _state.value = _state.value.copy(fortuneShakeSound = v)
     }
 
     fun setDiceTriggerMode(m: String) {

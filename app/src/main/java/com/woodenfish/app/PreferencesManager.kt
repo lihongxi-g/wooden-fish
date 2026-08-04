@@ -91,6 +91,10 @@ class PreferencesManager(context: Context) {
     fun getFortuneTriggerMode() = p.getString("fortune_trigger", "tap") ?: "tap"
     fun setFortuneTriggerMode(m: String) = p.edit().putString("fortune_trigger", m).apply()
 
+    // ─── Fortune shake sound (签筒摇晃音效) ───
+    fun isFortuneShakeSound() = p.getBoolean("fortune_shake_sound", true)
+    fun setFortuneShakeSound(v: Boolean) = p.edit().putBoolean("fortune_shake_sound", v).apply()
+
     // ─── Dice trigger mode ("tap" / "shake") ───
     fun getDiceTriggerMode() = p.getString("dice_trigger", "tap") ?: "tap"
     fun setDiceTriggerMode(m: String) = p.edit().putString("dice_trigger", m).apply()

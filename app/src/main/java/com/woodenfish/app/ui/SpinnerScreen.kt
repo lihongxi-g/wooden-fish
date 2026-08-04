@@ -1,6 +1,5 @@
 package com.woodenfish.app.ui
 
-import android.graphics.Paint
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -20,9 +19,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -30,9 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.woodenfish.app.SpinnerSegment
 import com.woodenfish.app.WoodenFishState
 import com.woodenfish.app.WoodenFishViewModel
-import kotlin.math.cos
 import kotlin.math.min
-import kotlin.math.sin
 
 private fun t(lang: String, zhCN: String, zhTW: String, en: String, fr: String = en, ru: String = en, es: String = en): String = when (lang) {
     "zh-TW" -> zhTW; "en" -> en; "fr" -> fr; "ru" -> ru; "es" -> es; else -> zhCN
@@ -123,25 +118,6 @@ private fun SpinnerWheel(state: WoodenFishState, viewModel: WoodenFishViewModel,
                     startAngle = start + 0.6f, sweepAngle = sweep - 1.2f, useCenter = true,
                     topLeft = Offset(cx - r, cy - r), size = Size(r * 2, r * 2)
                 )
-                // 分区名称（沿半径方向，从内向外）
-                val label = seg.name.trim().ifEmpty { "${i + 1}" }
-                drawIntoCanvas { canvas ->
-                    val paint = Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-                        color = android.graphics.Color.WHITE
-                        textSize = min(r * 0.16f, 26f)
-                        typeface = android.graphics.Typeface.create("serif", android.graphics.Typeface.BOLD)
-                        textAlign = Paint.Align.CENTER
-                    }
-                    val mid = start + sweep / 2f
-                    val rad = (mid - 90f) * (Math.PI.toFloat() / 180f)
-                    val tx = cx + cos(rad) * r * 0.62f
-                    val ty = cy + sin(rad) * r * 0.62f
-                    canvas.nativeCanvas.save()
-                    canvas.nativeCanvas.rotate(mid - 90f + 90f, tx, ty)
-                    val shortened = if (label.length > 5) label.take(5) + "…" else label
-                    canvas.nativeCanvas.drawText(shortened, tx, ty + paint.textSize * 0.35f, paint)
-                    canvas.nativeCanvas.restore()
-                }
             }
         }
         // 分隔线
