@@ -27,7 +27,9 @@ import androidx.compose.ui.unit.sp
 import com.woodenfish.app.SpinnerSegment
 import com.woodenfish.app.WoodenFishState
 import com.woodenfish.app.WoodenFishViewModel
+import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.sin
 
 private fun t(lang: String, zhCN: String, zhTW: String, en: String, fr: String = en, ru: String = en, es: String = en): String = when (lang) {
     "zh-TW" -> zhTW; "en" -> en; "fr" -> fr; "ru" -> ru; "es" -> es; else -> zhCN
