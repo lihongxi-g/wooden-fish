@@ -108,7 +108,11 @@ fun WoodenFishScreen(viewModel: WoodenFishViewModel) {
 
         // Sub-pages
         when (page) {
-            "settings" -> { SubPage(t(lang, "设置", "設定", "Settings"), onBack = { page = null }) { SettingsPage(state, viewModel, lang, isDark, context) }; return@WoodenFishTheme }
+            "settings" -> { SubPage(t(lang, "设置", "設定", "Settings"), onBack = { page = null }) { SettingsPage(lang, onOpen = { page = it }) }; return@WoodenFishTheme }
+            "notify" -> { SubPage(t(lang, "提醒设置", "提醒設定", "Notifications"), onBack = { page = "settings" }) { NotifySettingsPage(state, viewModel, lang, context) }; return@WoodenFishTheme }
+            "sound" -> { SubPage(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration"), onBack = { page = "settings" }) { SoundVibrationPage(state, viewModel, lang) }; return@WoodenFishTheme }
+            "appearance" -> { SubPage(t(lang, "界面主题", "界面主題", "Theme"), onBack = { page = "settings" }) { AppearancePage(state, viewModel, lang, isDark) }; return@WoodenFishTheme }
+            "language" -> { SubPage(t(lang, "语言", "語言", "Language"), onBack = { page = "settings" }) { LanguagePage(state, viewModel, lang) }; return@WoodenFishTheme }
             "about" -> { SubPage(t(lang, "关于", "關於", "About"), onBack = { page = null; viewModel.resetAboutClicks() }) { AboutPage(viewModel, lang, context) }; return@WoodenFishTheme }
         }
 
@@ -258,24 +262,21 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
     TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) { Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)) }
 }
 
-// ═══════════════ SETTINGS (grouped) ═══════════════
-@Composable private fun SettingsPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, isDark: Boolean, context: android.content.Context) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionTitle(t(lang, "提醒设置", "提醒設定", "Notifications"))
-        NotifySettingsPage(state, viewModel, lang, context)
-        Divider(Modifier.padding(vertical = 12.dp))
-        SectionTitle(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration"))
-        SoundVibrationPage(state, viewModel, lang)
-        Divider(Modifier.padding(vertical = 12.dp))
-        SectionTitle(t(lang, "界面主题", "界面主題", "Theme"))
-        AppearancePage(state, viewModel, lang, isDark)
-        Divider(Modifier.padding(vertical = 12.dp))
-        SectionTitle(t(lang, "语言", "語言", "Language"))
-        LanguagePage(state, viewModel, lang)
+// ═══════════════ SETTINGS (sub-menu list) ═══════════════
+@Composable private fun SettingsPage(lang: String, onOpen: (String) -> Unit) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        SettingItem(t(lang, "提醒设置", "提醒設定", "Notifications"), "notify", onOpen)
+        SettingItem(t(lang, "声音与震动", "聲音與震動", "Sound & Vibration"), "sound", onOpen)
+        SettingItem(t(lang, "界面主题", "界面主題", "Theme"), "appearance", onOpen)
+        SettingItem(t(lang, "语言", "語言", "Language"), "language", onOpen)
     }
 }
-@Composable private fun SectionTitle(text: String) {
-    Text(text, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+@Composable private fun SettingItem(label: String, target: String, onOpen: (String) -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable { onOpen(target) }.padding(horizontal = 8.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+        Text("\u203A", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.outline)
+    }
+    Divider(modifier = Modifier.padding(horizontal = 8.dp))
 }
 
 // ═══════════════ NOTIFICATION SETTINGS ═══════════════
@@ -313,7 +314,7 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
             viewModel.toast(t(lang, "需要日历权限才能使用固定时间提醒", "需要日曆權限才能使用固定時間提醒", "Calendar permission required"))
         }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(t(lang, "开启提醒", "開啟提醒", "Enable"), style = MaterialTheme.typography.bodyLarge)
             Switch(checked = state.notifyEnabled, onCheckedChange = { viewModel.updateNotificationEnabled(it); viewModel.toast(if (it) t(lang, "提醒已开启", "提醒已開啟", "Notifications enabled") else t(lang, "提醒已关闭", "提醒已關閉", "Notifications disabled")) }, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primaryContainer))
@@ -470,7 +471,7 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
 
 // ═══════════════ APPEARANCE (theme color only) ═══════════════
 @Composable private fun AppearancePage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String, isDark: Boolean) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(t(lang, "主题颜色", "主題顏色", "Theme Color"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         allThemes.forEachIndexed { i, tc ->
             val name = when (lang) { "zh-TW" -> tc.nameTW; "en" -> tc.nameEN; else -> tc.name }
@@ -494,7 +495,7 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
 
 // ═══════════════ LANGUAGE ═══════════════
 @Composable private fun LanguagePage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf(Triple("简体中文", "zh-CN", "Simplified Chinese"), Triple("繁體中文", "zh-TW", "Traditional Chinese"), Triple("English", "en", "English")).forEach { (label, code, _) ->
             Row(Modifier.fillMaxWidth().clickable { viewModel.setLanguage(code) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
@@ -506,7 +507,7 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
 
 // ═══════════════ SOUND & VIBRATION ═══════════════
 @Composable private fun SoundVibrationPage(state: WoodenFishState, viewModel: WoodenFishViewModel, lang: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Text(t(lang, "声音反馈", "聲音回饋", "Sound Feedback"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         if (state.soundSupported) {
             Text("${t(lang, "音量", "音量", "Volume")}: ${(state.soundVolume * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
@@ -556,7 +557,7 @@ private fun FishCanvas(tapTick: Int, speed: Float, modifier: Modifier) {
         Text(t(lang, "电子木鱼", "電子木魚", "Digital Wooden Fish"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
         TextButton(onClick = { viewModel.onVersionClick(); if (cc + 1 >= 5) { viewModel.resetAboutClicks(); context.startActivity(Intent(Intent.ACTION_SENDTO).apply { data = Uri.parse("mailto:zhif0776@hotmail.com"); putExtra(Intent.EXTRA_SUBJECT, "Doki \u53CD\u9988") }) } }) {
-            Text("${t(lang, "版本", "版本", "Version")} 2.0.8", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${t(lang, "版本", "版本", "Version")} 2.0.9", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
         Text(t(lang, "连续点击版本号 5 次向开发者反馈", "連續點擊版本號 5 次向開發者反饋", "Tap version 5 times to send feedback"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
